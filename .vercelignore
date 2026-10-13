@@ -1,0 +1,11 @@
+# Ignore temporary archive and test files
+*.zip
+*.tar.gz
+*.tgz
+*.log
+.DS_Store
+
+# Ignore root-level runtime database json files from build bundle (anchored to root /)
+/data/
+!src/data/
+!src/data/**
