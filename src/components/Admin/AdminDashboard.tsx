@@ -959,9 +959,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                     <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#86D416] via-[#B7FF35] to-[#467320] shrink-0">
                       <div className="w-full h-full rounded-full overflow-hidden bg-[#0A0F0E]">
                         <img
-                          src={siteConfig.founderAvatarUrl || '/Screenshot_20260327-120047~2.jpg.jpeg'}
+                          src={siteConfig.founderAvatarUrl || '/images/adil-profile.jpg'}
                           alt="Founder Preview"
                           className="w-full h-full object-cover object-[center_15%]"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/adil-profile.jpg';
+                          }}
                         />
                       </div>
                     </div>
@@ -1028,12 +1031,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                             src={siteConfig.huzaifaAvatarUrl}
                             alt="Huzaifa Preview"
                             className="w-full h-full object-cover object-center"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/images/huzaifa-profile.jpg';
+                            }}
                           />
                         ) : (
                           <img
                             src="/images/huzaifa-profile.jpg"
                             alt="Huzaifa Preview"
                             className="w-full h-full object-cover object-center"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/huzaifa-profile.jpg';
+                            }}
                           />
                         )}
                       </div>

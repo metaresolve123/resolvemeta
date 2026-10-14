@@ -18,6 +18,10 @@ export const WHATSAPP_DISPLAY_NUMBER = ADIL_WHATSAPP_DISPLAY_NUMBER;
 export const WHATSAPP_DEFAULT_MESSAGE = "Hello Adil, I would like to discuss an account recovery issue with META RESOLVE.";
 export const HUZAIFA_DEFAULT_MESSAGE = "Hello Huzaifa, I would like to discuss an account recovery case with META RESOLVE.";
 
+// Canonical Profile Image Paths (Hosted permanently under public/images for reliable Vite & Vercel deployment)
+export const ADIL_PROFILE_IMAGE = '/images/adil-profile.jpg';
+export const HUZAIFA_PROFILE_IMAGE = '/images/huzaifa-profile.jpg';
+
 export const getActiveOfficialEmail = (): string => {
   try {
     const config = getSiteConfig();

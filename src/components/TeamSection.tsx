@@ -8,9 +8,8 @@ import { motion } from 'motion/react';
 import { CheckCircle2, ArrowRight, MessageCircle, Shield, Sparkles, Lock } from 'lucide-react';
 import { TEAM_MEMBERS } from '../data/mockData';
 import { TeamMember } from '../types';
-import { WHATSAPP_DISPLAY_NUMBER, HUZAIFA_WHATSAPP_DISPLAY_NUMBER, getWhatsAppUrl } from '../config';
+import { WHATSAPP_DISPLAY_NUMBER, HUZAIFA_WHATSAPP_DISPLAY_NUMBER, getWhatsAppUrl, ADIL_PROFILE_IMAGE, HUZAIFA_PROFILE_IMAGE } from '../config';
 import { getSiteConfig } from '../utils/adminStorage';
-import huzaifaImg from '../assets/images/huzaifa-profile.jpg';
 
 interface TeamSectionProps {
   onContactSpecialist?: (specialistName: string) => void;
@@ -81,9 +80,10 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onContactSpecialist })
             const directNumber = isFounder ? WHATSAPP_DISPLAY_NUMBER : HUZAIFA_WHATSAPP_DISPLAY_NUMBER;
             const displayName = isFounder && siteConfig.founderName ? siteConfig.founderName : member.name;
             const displayRole = member.role;
-            const displayAvatar = isHuzaifa
-              ? huzaifaImg
-              : (isFounder ? ((siteConfig as any).founderAvatarUrl || member.avatarUrl) : member.avatarUrl);
+            const defaultAvatar = isFounder ? ADIL_PROFILE_IMAGE : HUZAIFA_PROFILE_IMAGE;
+            const displayAvatar = isFounder
+              ? (siteConfig.founderAvatarUrl || member.avatarUrl || defaultAvatar)
+              : (siteConfig.huzaifaAvatarUrl || member.avatarUrl || defaultAvatar);
 
             return (
               <motion.div
@@ -134,6 +134,13 @@ export const TeamSection: React.FC<TeamSectionProps> = ({ onContactSpecialist })
                             style={{ borderRadius: '50%' }}
                             loading="lazy"
                             referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              const fallbackUrl = isFounder ? '/adil-profile.jpg' : '/huzaifa-profile.jpg';
+                              if (target.src && !target.src.endsWith(fallbackUrl)) {
+                                target.src = fallbackUrl;
+                              }
+                            }}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#121A17] to-[#0A0F0E] text-[#B7FF35]">

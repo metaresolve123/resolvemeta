@@ -1,6 +1,6 @@
 import { ServiceItem, TeamMember, PricingPlan, CaseStudy, Testimonial } from '../types';
-import { getWhatsAppUrl, getHuzaifaWhatsAppUrl } from '../config';
-import adilImg from '../assets/images/adil_profile_1787479854318.jpg';
+import { getWhatsAppUrl, getHuzaifaWhatsAppUrl, ADIL_PROFILE_IMAGE, HUZAIFA_PROFILE_IMAGE } from '../config';
+import adilImg from '../assets/images/adil-profile.jpg';
 import huzaifaImg from '../assets/images/huzaifa-profile.jpg';
 
 export const PLATFORMS_LIST = [
@@ -128,7 +128,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     id: 'adil-afridi',
     name: 'Adil Afridi',
     role: 'FOUNDER & LEAD RECOVERY SPECIALIST',
-    avatarUrl: adilImg,
+    avatarUrl: ADIL_PROFILE_IMAGE,
     bio: 'Leads complex account recovery cases, platform appeals, and high-priority client resolutions. Focused on strategic recovery solutions and helping clients navigate difficult account restrictions.',
     serviceTags: [
       'Account Recovery',
@@ -148,7 +148,7 @@ export const TEAM_MEMBERS: TeamMember[] = [
     id: 'huzaifa',
     name: 'Huzaifa',
     role: 'CO-FOUNDER & RECOVERY SPECIALIST',
-    avatarUrl: huzaifaImg,
+    avatarUrl: HUZAIFA_PROFILE_IMAGE,
     bio: 'Handles account recovery cases across major social and messaging platforms, with a focus on fast communication, appeals, and practical recovery support.',
     serviceTags: [
       'Instagram Recovery',

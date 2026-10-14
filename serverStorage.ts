@@ -70,6 +70,7 @@ const DEFAULT_SITE_CONFIG: SiteConfig = {
   whatsappNumber: '923372430274',
   whatsappDisplayNumber: '+92 337 2430274',
   founderName: 'Adil Afridi',
+  founderAvatarUrl: '/images/adil-profile.jpg',
   huzaifaAvatarUrl: '/images/huzaifa-profile.jpg',
   caseworkStatus: 'Open',
   bannerAnnouncement: 'Priority Casework Queue Active: 24/7 Account Recovery & Direct Appeals Support',
