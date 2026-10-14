@@ -139,8 +139,17 @@ const INITIAL_SAMPLE_LEADS: LeadRecord[] = [
   }
 ];
 
-// Determine data directory location
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Determine data directory location: in serverless (e.g. Vercel / AWS Lambda), the root is read-only, so /tmp is used
+const isServerless = Boolean(
+  process.env.VERCEL ||
+  process.env.AWS_LAMBDA_FUNCTION_NAME ||
+  process.env.LAMBDA_TASK_ROOT
+);
+
+const DATA_DIR = isServerless
+  ? path.join('/tmp', 'meta_resolve_data')
+  : path.join(process.cwd(), 'data');
+
 const CASES_FILE = path.join(DATA_DIR, 'cases.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');

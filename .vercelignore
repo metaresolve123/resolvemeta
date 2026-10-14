@@ -4,6 +4,7 @@
 *.tgz
 *.log
 .DS_Store
+bun.lock
 
 # Ignore root-level runtime database json files from build bundle (anchored to root /)
 /data/
