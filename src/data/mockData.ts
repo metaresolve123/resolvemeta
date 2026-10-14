@@ -366,3 +366,12 @@ export const FAQ_ITEMS = [
   }
 ];
 
+export default {
+  PLATFORMS_LIST,
+  SERVICES_DATA,
+  TEAM_MEMBERS,
+  PRICING_PLANS,
+  CASE_STUDIES,
+  TESTIMONIALS,
+  FAQ_ITEMS
+};
