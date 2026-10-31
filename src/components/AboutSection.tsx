@@ -197,7 +197,8 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onContactClick }) =>
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.35, delay: idx * 0.06 }}
-                  className="p-6 rounded-2xl bg-[#0F1614] border border-white/[0.08] hover:border-[#B7FF35]/30 hover:bg-[#141E1A] transition-all flex flex-col justify-between group"
+                  whileHover={{ y: -4 }}
+                  className="p-6 rounded-2xl bg-[#0F1614] border border-white/[0.08] hover:border-[#B7FF35]/40 hover:bg-[#141E1A] hover:shadow-[0_10px_30px_rgba(183,255,53,0.08)] transition-all flex flex-col justify-between group"
                   id={`about-value-${val.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
                 >
                   <div>
@@ -221,14 +222,15 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onContactClick }) =>
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.35, delay: 0.3 }}
-              className="p-6 rounded-2xl bg-gradient-to-br from-[#121C18] to-[#0A110F] border border-[#B7FF35]/20 flex flex-col justify-between"
+              whileHover={{ y: -4 }}
+              className="p-6 rounded-2xl bg-gradient-to-br from-[#121C18] to-[#0A110F] border border-[#B7FF35]/20 hover:border-[#B7FF35]/40 hover:shadow-[0_10px_30px_rgba(183,255,53,0.08)] transition-all flex flex-col justify-between"
             >
               <div>
                 <div className="w-11 h-11 rounded-xl bg-[#1A2822] border border-[#B7FF35]/40 flex items-center justify-center text-[#B7FF35] mb-4">
                   <AlertCircle className="w-5 h-5" />
                 </div>
                 <h4 className="text-base font-bold text-[#F2F5EF] mb-2">
-                  Ethical & Realistic Practice
+                  Ethical &amp; Realistic Practice
                 </h4>
                 <p className="text-xs sm:text-sm text-[#A0AAA3] leading-relaxed">
                   We maintain strict honesty with every client. Account resolution feasibility is determined by platform policies and specific violation criteria. We do not make misleading guaranteed recovery claims.
@@ -237,13 +239,15 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onContactClick }) =>
 
               {onContactClick && (
                 <div className="pt-4 mt-2">
-                  <button
+                  <motion.button
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={onContactClick}
                     className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-[#B7FF35] hover:text-[#C7FF45] transition-colors cursor-pointer"
                   >
                     <span>Request a Case Review</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
+                    <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </motion.button>
                 </div>
               )}
             </motion.div>

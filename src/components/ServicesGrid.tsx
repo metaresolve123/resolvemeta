@@ -85,17 +85,19 @@ export const ServicesGrid: React.FC<ServicesGridProps> = ({ onSelectPlatformForQ
           {/* Platform Filter Selector */}
           <div className="flex flex-wrap gap-1.5 p-1.5 bg-[#121816] border border-white/[0.08] rounded-2xl self-start lg:self-auto max-w-full">
             {filterOptions.map((opt) => (
-              <button
+              <motion.button
                 key={opt.id}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => setActiveFilter(opt.id)}
                 className={`px-3.5 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                   activeFilter === opt.id
-                    ? 'bg-[#B7FF35] text-[#090D0D] font-bold shadow-md shadow-[#B7FF35]/15'
+                    ? 'bg-[#B7FF35] text-[#090D0D] font-bold shadow-md shadow-[#B7FF35]/20'
                     : 'text-[#A0AAA3] hover:text-[#F2F5EF] hover:bg-[#18221F]'
                 }`}
               >
                 {opt.label}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>

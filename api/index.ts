@@ -8,8 +8,16 @@ import {
   deleteLeadRecord,
   getStoredSiteConfig,
   updateStoredSiteConfig,
+  getAllConversations,
+  getConversationById,
+  getConversationByToken,
+  createConversationRecord,
+  addVisitorMessageRecord,
+  addAdminReplyRecord,
+  updateConversationStatusRecord,
+  saveAllConversations,
 } from '../serverStorage.ts';
-import type { LeadStatus, PlatformType } from '../serverStorage.ts';
+import type { LeadStatus, PlatformType, ConversationStatus } from '../serverStorage.ts';
 import {
   authenticateServerlessRequest,
   getAdminUsername,
@@ -150,7 +158,8 @@ app.post(['/leads', '/api/leads'], handleLeadSubmission);
 // ----------------------------------------------------
 app.post(['/admin/login', '/api/admin/login'], async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+    const username = req.body?.username || req.body?.adminId;
+    const password = req.body?.password;
 
     if (!username || !password) {
       return res.status(400).json({
@@ -381,10 +390,222 @@ app.post(['/admin/change-password', '/api/admin/change-password'], (req, res) =>
     });
   }
 
+  return res.json({
+    success: true,
+    message: 'To change the admin password permanently, update the ADMIN_PASSWORD environment variable in your Vercel project settings.'
+  });
+});
+
+// ----------------------------------------------------
+// Public Customer Support Chat Endpoints
+// ----------------------------------------------------
+
+// Start a new support conversation
+app.post(['/chat/start', '/api/chat/start'], (req, res) => {
+  try {
+    const { name, email, platform, message } = req.body || {};
+
+    const visitorName = String(name || '').trim();
+    const visitorEmail = String(email || '').trim().toLowerCase();
+    const text = String(message || '').trim();
+    const plat = (platform as PlatformType) || 'other';
+
+    if (!visitorName || visitorName.length < 2) {
+      return res.status(400).json({ success: false, error: 'Please enter your name.' });
+    }
+
+    if (!visitorEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail)) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required so we can reply to your case.' });
+    }
+
+    if (!text || text.length < 3) {
+      return res.status(400).json({ success: false, error: 'Please enter a message explaining your case (minimum 3 characters).' });
+    }
+
+    if (text.length > 5000) {
+      return res.status(400).json({ success: false, error: 'Message exceeds maximum allowable length (5000 characters).' });
+    }
+
+    const { conversation, accessToken } = createConversationRecord({
+      name: visitorName,
+      email: visitorEmail,
+      platform: plat,
+      message: text,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Support inquiry created successfully.',
+      conversationId: conversation.id,
+      accessToken,
+      conversation,
+    });
+  } catch (err: any) {
+    console.error('Error starting chat conversation:', err);
+    return res.status(500).json({ success: false, error: 'Could not create support message. Please try again.' });
+  }
+});
+
+// Fetch visitor conversation by ID and secure accessToken
+app.get(['/chat/:id', '/api/chat/:id'], (req, res) => {
+  try {
+    const { id } = req.params;
+    const token = String(req.query.token || req.headers['x-chat-token'] || '').trim();
+
+    if (!token) {
+      return res.status(401).json({ success: false, error: 'Secure conversation token required.' });
+    }
+
+    const convo = getConversationByToken(id, token);
+    if (!convo) {
+      return res.status(404).json({ success: false, error: 'Conversation not found or access token invalid.' });
+    }
+
+    // Mark visitor messages as read by visitor
+    if (convo.unreadByVisitor) {
+      convo.unreadByVisitor = false;
+      const all = getAllConversations();
+      saveAllConversations(all.map((c) => (c.id === convo.id ? convo : c)));
+    }
+
+    return res.status(200).json({ success: true, conversation: convo });
+  } catch (err: any) {
+    console.error('Error fetching chat conversation:', err);
+    return res.status(500).json({ success: false, error: 'Error loading conversation.' });
+  }
+});
+
+// Add message from visitor to existing conversation
+app.post(['/chat/:id/message', '/api/chat/:id/message'], (req, res) => {
+  try {
+    const { id } = req.params;
+    const { token, message } = req.body || {};
+
+    const accessToken = String(token || req.headers['x-chat-token'] || '').trim();
+    const text = String(message || '').trim();
+
+    if (!accessToken) {
+      return res.status(401).json({ success: false, error: 'Secure conversation token required.' });
+    }
+
+    if (!text || text.length < 1) {
+      return res.status(400).json({ success: false, error: 'Message text cannot be empty.' });
+    }
+
+    if (text.length > 5000) {
+      return res.status(400).json({ success: false, error: 'Message exceeds maximum length.' });
+    }
+
+    const result = addVisitorMessageRecord(id, accessToken, text);
+    if (!result.success || !result.conversation) {
+      return res.status(403).json({ success: false, error: result.error || 'Failed to send message.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      conversation: result.conversation,
+    });
+  } catch (err: any) {
+    console.error('Error sending message:', err);
+    return res.status(500).json({ success: false, error: 'Could not send message.' });
+  }
+});
+
+// ----------------------------------------------------
+// Admin Customer Messages Endpoints (Session Protected)
+// ----------------------------------------------------
+
+// List all conversations
+app.get(['/admin/conversations', '/api/admin/conversations'], (req, res) => {
+  const session = getAuthenticatedSession(req);
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Admin login required.' });
+  }
+
+  const { status } = req.query;
+  let conversations = getAllConversations();
+
+  if (status && typeof status === 'string' && status !== 'all') {
+    conversations = conversations.filter((c) => c.status === status);
+  }
+
   return res.status(200).json({
     success: true,
-    message: 'To change the admin password permanently, update the ADMIN_PASSWORD environment variable in your Vercel project settings.',
+    conversations,
+    unreadCount: conversations.filter((c) => c.unreadByAdmin).length,
   });
+});
+
+// Get single conversation details & mark read by admin
+app.get(['/admin/conversations/:id', '/api/admin/conversations/:id'], (req, res) => {
+  const session = getAuthenticatedSession(req);
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Admin login required.' });
+  }
+
+  const { id } = req.params;
+  const convo = getConversationById(id);
+  if (!convo) {
+    return res.status(404).json({ success: false, error: 'Conversation not found.' });
+  }
+
+  if (convo.unreadByAdmin) {
+    convo.unreadByAdmin = false;
+    const all = getAllConversations();
+    saveAllConversations(all.map((c) => (c.id === convo.id ? convo : c)));
+  }
+
+  return res.status(200).json({ success: true, conversation: convo });
+});
+
+// Admin sends reply to visitor
+app.post(['/admin/conversations/:id/reply', '/api/admin/conversations/:id/reply'], (req, res) => {
+  const session = getAuthenticatedSession(req);
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Admin login required.' });
+  }
+
+  const { id } = req.params;
+  const { replyText, senderName } = req.body || {};
+
+  const text = String(replyText || '').trim();
+  if (!text) {
+    return res.status(400).json({ success: false, error: 'Reply text cannot be empty.' });
+  }
+
+  const name = String(senderName || 'META RESOLVE Specialist').trim();
+  const result = addAdminReplyRecord(id, text, name);
+
+  if (!result.success || !result.conversation) {
+    return res.status(404).json({ success: false, error: result.error || 'Failed to post reply.' });
+  }
+
+  return res.status(200).json({
+    success: true,
+    conversation: result.conversation,
+  });
+});
+
+// Admin updates conversation status
+app.patch(['/admin/conversations/:id/status', '/api/admin/conversations/:id/status'], (req, res) => {
+  const session = getAuthenticatedSession(req);
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Admin login required.' });
+  }
+
+  const { id } = req.params;
+  const { status } = req.body || {};
+
+  if (!status) {
+    return res.status(400).json({ success: false, error: 'Status is required.' });
+  }
+
+  const updated = updateConversationStatusRecord(id, status as ConversationStatus);
+  if (!updated) {
+    return res.status(404).json({ success: false, error: 'Conversation not found.' });
+  }
+
+  return res.status(200).json({ success: true, conversation: updated });
 });
 
 // Default 404 for unhandled API paths

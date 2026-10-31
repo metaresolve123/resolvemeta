@@ -30,9 +30,20 @@ import {
   Smartphone,
   Globe,
   Bell,
-  FileText
+  FileText,
+  Send,
+  CornerDownRight,
+  UserCheck
 } from 'lucide-react';
-import { LeadRecord, LeadStatus, PlatformType, SiteConfig } from '../../types';
+import {
+  LeadRecord,
+  LeadStatus,
+  PlatformType,
+  SiteConfig,
+  ChatConversation,
+  ChatMessage,
+  ConversationStatus
+} from '../../types';
 import {
   getLeads,
   fetchLeadsFromServer,
@@ -49,6 +60,12 @@ import {
   getStoredAdminUsername,
   saveLead
 } from '../../utils/adminStorage';
+import {
+  fetchAdminConversations,
+  fetchAdminConversation,
+  sendAdminReply,
+  updateAdminConversationStatus
+} from '../../utils/chatApi';
 
 interface AdminDashboardProps {
   onExitAdmin: () => void;
@@ -64,7 +81,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
   // Active Admin View Tab
-  const [activeTab, setActiveTab] = useState<'leads' | 'settings' | 'security'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'messages' | 'settings' | 'security'>('leads');
+
+  // Customer Messages Chat state
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
+  const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
+  const [chatFilter, setChatFilter] = useState<string>('all');
+  const [chatSearch, setChatSearch] = useState<string>('');
+  const [adminReplyText, setAdminReplyText] = useState<string>('');
+  const [isSendingReply, setIsSendingReply] = useState<boolean>(false);
 
   // Leads state
   const [leads, setLeads] = useState<LeadRecord[]>([]);
@@ -105,6 +131,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
     setLeads(fresh);
   };
 
+  const loadConversations = async () => {
+    const res = await fetchAdminConversations();
+    if (res.success) {
+      setConversations(res.conversations);
+      setUnreadMessagesCount(res.unreadCount);
+    }
+  };
+
   // Check initial server session on mount
   useEffect(() => {
     let isMounted = true;
@@ -114,6 +148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
         if (isValid) {
           setIsAuthenticated(true);
           loadLeads();
+          loadConversations();
           fetchSiteConfigFromServer().then((cfg) => setSiteConfig(cfg));
         } else {
           setIsAuthenticated(false);
@@ -126,21 +161,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
     };
   }, []);
 
-  // Real-time synchronization: poll server every 6 seconds when authenticated
+  // Real-time synchronization: poll server every 4-5 seconds when authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
 
     const interval = setInterval(() => {
       fetchLeadsFromServer().then((latest) => {
         setLeads((prev) => {
-          // If counts or latest id changed, notify
           if (latest.length > prev.length) {
             showToast('New case inquiry received!');
           }
           return latest;
         });
       });
-    }, 6000);
+
+      fetchAdminConversations().then((res) => {
+        if (res.success) {
+          setConversations((prev) => {
+            if (res.unreadCount > 0 && res.conversations.length > prev.length) {
+              showToast('New customer message received!');
+            }
+            return res.conversations;
+          });
+          setUnreadMessagesCount(res.unreadCount);
+
+          // If a conversation is actively open, keep it in sync
+          setSelectedConversation((current) => {
+            if (!current) return null;
+            const updated = res.conversations.find((c) => c.id === current.id);
+            return updated || current;
+          });
+        }
+      });
+    }, 4500);
 
     return () => clearInterval(interval);
   }, [isAuthenticated]);
@@ -149,10 +202,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
   useEffect(() => {
     const handleLeadAdded = () => {
       loadLeads();
-      showToast('New case inquiry received!');
+      loadConversations();
+      showToast('New inquiry recorded!');
     };
     const handleLeadsUpdated = () => {
       loadLeads();
+      loadConversations();
     };
 
     window.addEventListener('metaresolve_lead_added', handleLeadAdded);
@@ -175,6 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
     if (res.success) {
       setIsAuthenticated(true);
       await loadLeads();
+      await loadConversations();
       const cfg = await fetchSiteConfigFromServer();
       setSiteConfig(cfg);
       setPasswordInput('');
@@ -187,6 +243,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
     await logoutAdmin();
     setIsAuthenticated(false);
     setPasswordInput('');
+  };
+
+  const handleSelectConversation = async (convo: ChatConversation) => {
+    setSelectedConversation(convo);
+    const res = await fetchAdminConversation(convo.id);
+    if (res.success && res.conversation) {
+      setSelectedConversation(res.conversation);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convo.id ? res.conversation! : c))
+      );
+      setUnreadMessagesCount((prev) => Math.max(0, prev - (convo.unreadByAdmin ? 1 : 0)));
+    }
+  };
+
+  const handleSendAdminReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminReplyText.trim() || !selectedConversation || isSendingReply) return;
+
+    const text = adminReplyText.trim();
+    setAdminReplyText('');
+    setIsSendingReply(true);
+
+    const res = await sendAdminReply(selectedConversation.id, text, 'META RESOLVE Specialist');
+    setIsSendingReply(false);
+
+    if (res.success && res.conversation) {
+      setSelectedConversation(res.conversation);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === res.conversation!.id ? res.conversation! : c))
+      );
+      showToast('Reply dispatched to visitor chat.');
+    } else {
+      showToast(res.error || 'Failed to dispatch reply.');
+    }
+  };
+
+  const handleUpdateConversationStatus = async (status: ConversationStatus) => {
+    if (!selectedConversation) return;
+    const res = await updateAdminConversationStatus(selectedConversation.id, status);
+    if (res.success && res.conversation) {
+      setSelectedConversation(res.conversation);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === res.conversation!.id ? res.conversation! : c))
+      );
+      showToast(`Conversation marked as ${status.replace('_', ' ')}.`);
+    }
   };
 
   // Filtered Leads
@@ -207,6 +309,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
       return matchesSearch && matchesPlatform && matchesStatus && matchesUrgency;
     });
   }, [leads, searchQuery, platformFilter, statusFilter, urgencyFilter]);
+
+  // Filtered Support Chat Conversations
+  const filteredConversations = useMemo(() => {
+    return conversations.filter((convo) => {
+      const q = chatSearch.toLowerCase();
+      const matchesSearch =
+        q === '' ||
+        convo.visitorName.toLowerCase().includes(q) ||
+        convo.visitorEmail.toLowerCase().includes(q) ||
+        convo.id.toLowerCase().includes(q) ||
+        convo.platform.toLowerCase().includes(q) ||
+        convo.lastMessageText.toLowerCase().includes(q);
+
+      const matchesStatus = chatFilter === 'all' || convo.status === chatFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [conversations, chatFilter, chatSearch]);
 
   // Lead Actions
   const handleStatusChange = async (id: string, newStatus: LeadStatus) => {
@@ -584,6 +703,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
           </button>
 
           <button
+            onClick={() => setActiveTab('messages')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'messages'
+                ? 'bg-[#B7FF35] text-[#090D0D] shadow-[0_0_15px_rgba(183,255,53,0.3)]'
+                : 'text-[#A0AAA3] hover:text-[#F2F5EF] hover:bg-[#121A18]'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Customer Messages</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                unreadMessagesCount > 0
+                  ? 'bg-red-500 text-white font-bold animate-pulse'
+                  : activeTab === 'messages'
+                  ? 'bg-[#090D0D] text-[#B7FF35]'
+                  : 'bg-[#15201C] text-[#A0AAA3]'
+              }`}
+            >
+              {conversations.length}
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('settings')}
             className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'settings'
@@ -592,7 +734,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
             }`}
           >
             <Settings className="w-4 h-4" />
-            <span>Website Controls & WhatsApp</span>
+            <span>Website Notice & Controls</span>
           </button>
 
           <button
@@ -786,25 +928,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
 
                       {/* Action Buttons */}
                       <div className="flex items-center gap-1.5 w-full justify-end">
-                        {/* WhatsApp Client */}
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(
-                            `Hello ${lead.name}, this is Adil Afridi from META RESOLVE regarding your case inquiry #${lead.id} for ${lead.accountHandle}.`
-                          )}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-2 rounded-lg bg-[#B7FF35] hover:bg-[#C7FF45] text-[#090D0D] transition-all shadow-md"
-                          title="Message client on WhatsApp"
+                        {/* Open in Messages */}
+                        <button
+                          onClick={() => {
+                            setActiveTab('messages');
+                            setChatSearch(lead.email);
+                          }}
+                          className="p-2 rounded-lg bg-[#141E1C] hover:bg-[#1B2B27] border border-white/10 text-[#F2F5EF] hover:text-[#B7FF35] transition-all cursor-pointer"
+                          title="Search Customer Messages"
                         >
-                          <MessageSquare className="w-4 h-4 fill-current" />
-                        </a>
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
 
                         {/* Email Client */}
                         <a
                           href={`mailto:${lead.email}?subject=${encodeURIComponent(
                             `META RESOLVE: Case #${lead.id} Update for ${lead.accountHandle}`
                           )}&body=${encodeURIComponent(
-                            `Hello ${lead.name},\n\nWe have received your recovery inquiry regarding ${lead.accountHandle}.\n\nCasework Status: ${lead.status.toUpperCase()}\n\nBest regards,\nAdil Afridi\nFounder & Lead Recovery Specialist\nMETA RESOLVE`
+                            `Hello ${lead.name},\n\nWe have received your recovery inquiry regarding ${lead.accountHandle}.\n\nCasework Status: ${lead.status.toUpperCase()}\n\nBest regards,\nMETA RESOLVE Case Operations\nLead Recovery Specialist`
                           )}`}
                           className="p-2 rounded-lg bg-[#141E1C] hover:bg-[#1B2B27] border border-white/10 text-[#F2F5EF] hover:text-[#B7FF35] transition-all"
                           title="Send Email"
@@ -842,7 +983,265 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
         )}
 
         {/* ==================================================== */}
-        {/* TAB 2: WEBSITE CONTROLS & WHATSAPP CONFIG            */}
+        {/* TAB: CUSTOMER SUPPORT CHAT & CONVERSATIONS           */}
+        {/* ==================================================== */}
+        {activeTab === 'messages' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* LEFT COLUMN: Conversation List & Filters (5 cols) */}
+            <div className="lg:col-span-5 bg-[#0E1513] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col h-[760px]">
+              <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#14201C] border border-[#B7FF35]/30 text-[#B7FF35] flex items-center justify-center">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#F2F5EF]">Customer Messages</h3>
+                    <span className="text-[11px] font-mono text-[#8C9891]">
+                      {conversations.length} total • {unreadMessagesCount} unread
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={loadConversations}
+                  title="Refresh messages"
+                  className="p-1.5 rounded-lg bg-[#14201C] border border-white/10 text-[#A0AAA3] hover:text-[#B7FF35] transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative mb-3">
+                <Search className="w-3.5 h-3.5 text-[#8C9891] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  placeholder="Search by name, email, platform..."
+                  className="w-full pl-9 pr-3 py-2 bg-[#0A0E0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-xs font-mono text-[#F2F5EF] placeholder-[#68736D] outline-none"
+                />
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-none text-[11px] font-mono">
+                {['all', 'new', 'open', 'in_progress', 'replied', 'resolved'].map((filterKey) => (
+                  <button
+                    key={filterKey}
+                    onClick={() => setChatFilter(filterKey)}
+                    className={`px-2.5 py-1 rounded-lg uppercase tracking-wider font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      chatFilter === filterKey
+                        ? 'bg-[#B7FF35] text-[#090D0D]'
+                        : 'bg-[#14201C] text-[#8C9891] hover:text-[#F2F5EF]'
+                    }`}
+                  >
+                    {filterKey.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+
+              {/* Conversation Items List */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                {filteredConversations.length === 0 ? (
+                  <div className="text-center py-12 text-[#8C9891] text-xs font-mono">
+                    No conversations match this criteria.
+                  </div>
+                ) : (
+                  filteredConversations.map((convo) => {
+                    const isSelected = selectedConversation?.id === convo.id;
+                    return (
+                      <div
+                        key={convo.id}
+                        onClick={() => handleSelectConversation(convo)}
+                        className={`p-3.5 rounded-xl border transition-all cursor-pointer text-left relative ${
+                          isSelected
+                            ? 'bg-[#162420] border-[#B7FF35] shadow-[0_0_15px_rgba(183,255,53,0.15)]'
+                            : 'bg-[#0A0F0E] border-white/[0.06] hover:border-white/20 hover:bg-[#121A18]'
+                        }`}
+                      >
+                        {/* Unread indicator */}
+                        {convo.unreadByAdmin && (
+                          <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                        )}
+
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs font-bold text-[#F2F5EF] truncate">
+                            {convo.visitorName}
+                          </span>
+                          <span className="text-[10px] font-mono text-[#8C9891] shrink-0">
+                            {new Date(convo.lastMessageTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-1.5 text-[10px] font-mono">
+                          <span className="text-[#8C9891]">{convo.id}</span>
+                          <span>•</span>
+                          <span className="px-1.5 py-0.2 rounded bg-[#16221E] text-[#B7FF35] uppercase font-bold">
+                            {convo.platform}
+                          </span>
+                          <span className={`px-1.5 py-0.2 rounded uppercase font-bold text-[9px] ${
+                            convo.status === 'new' ? 'bg-blue-500/20 text-blue-400' :
+                            convo.status === 'open' ? 'bg-amber-500/20 text-amber-400' :
+                            convo.status === 'in_progress' ? 'bg-purple-500/20 text-purple-400' :
+                            convo.status === 'replied' ? 'bg-[#B7FF35]/20 text-[#B7FF35]' :
+                            'bg-emerald-500/20 text-emerald-400'
+                          }`}>
+                            {convo.status.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-[#A0AAA3] line-clamp-2 leading-relaxed">
+                          {convo.lastMessageText}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Full Conversation & Reply Box (7 cols) */}
+            <div className="lg:col-span-7 bg-[#0E1513] border border-white/[0.08] rounded-2xl shadow-xl flex flex-col h-[760px] overflow-hidden">
+              {selectedConversation ? (
+                <>
+                  {/* Conversation Header */}
+                  <div className="p-4 sm:p-5 bg-[#121917] border-b border-white/[0.08] flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-extrabold text-[#F2F5EF]">
+                          {selectedConversation.visitorName}
+                        </h3>
+                        <span className="text-xs font-mono text-[#B7FF35] bg-[#16221E] border border-[#B7FF35]/30 px-2 py-0.5 rounded">
+                          {selectedConversation.id}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-[#8C9891] mt-0.5 font-mono">
+                        <a href={`mailto:${selectedConversation.visitorEmail}`} className="hover:text-[#B7FF35] underline">
+                          {selectedConversation.visitorEmail}
+                        </a>
+                        <span>•</span>
+                        <span className="uppercase text-[#D1DDD6]">Platform: {selectedConversation.platform}</span>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => handleUpdateConversationStatus('in_progress')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                          selectedConversation.status === 'in_progress'
+                            ? 'bg-purple-500 text-white'
+                            : 'bg-[#182320] border border-purple-500/40 text-purple-400 hover:bg-purple-500/20'
+                        }`}
+                      >
+                        Mark In Progress
+                      </button>
+
+                      <button
+                        onClick={() => handleUpdateConversationStatus('resolved')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                          selectedConversation.status === 'resolved'
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-[#182320] border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20'
+                        }`}
+                      >
+                        Mark Resolved
+                      </button>
+
+                      <button
+                        onClick={() => handleUpdateConversationStatus('open')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                          selectedConversation.status === 'open'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-[#182320] border border-amber-500/40 text-amber-400 hover:bg-amber-500/20'
+                        }`}
+                      >
+                        Mark Open
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Messages Bubble Thread */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#0A0F0E]">
+                    {selectedConversation.messages.map((msg) => {
+                      const isVisitor = msg.sender === 'visitor';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col ${isVisitor ? 'items-start' : 'items-end'}`}
+                        >
+                          <div className="flex items-center gap-2 mb-1 text-[11px] font-mono text-[#8C9891]">
+                            <span className="font-bold text-[#D1DDD6]">
+                              {msg.senderName}
+                            </span>
+                            <span>•</span>
+                            <span>{new Date(msg.timestamp).toLocaleString()}</span>
+                          </div>
+
+                          <div
+                            className={`max-w-[85%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
+                              isVisitor
+                                ? 'bg-[#141E1C] border border-white/10 text-[#F2F5EF] rounded-tl-sm'
+                                : 'bg-[#162722] border border-[#B7FF35]/40 text-[#F2F5EF] rounded-tr-sm shadow-[0_0_15px_rgba(183,255,53,0.1)]'
+                            }`}
+                          >
+                            <p className="whitespace-pre-wrap">{msg.text}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Administrator Reply Input Box */}
+                  <form onSubmit={handleSendAdminReply} className="p-4 bg-[#111816] border-t border-white/[0.08] space-y-3">
+                    <div className="flex items-center justify-between text-xs text-[#8C9891] font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <CornerDownRight className="w-3.5 h-3.5 text-[#B7FF35]" />
+                        <span>Send Official Reply to <strong className="text-[#F2F5EF]">{selectedConversation.visitorName}</strong></span>
+                      </span>
+                      <span>Real-time delivery to visitor chat</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <textarea
+                        rows={3}
+                        value={adminReplyText}
+                        onChange={(e) => setAdminReplyText(e.target.value)}
+                        placeholder="Write your case response or recovery instructions..."
+                        disabled={isSendingReply}
+                        className="flex-1 px-4 py-2.5 bg-[#090D0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-xs sm:text-sm text-[#F2F5EF] placeholder-[#68736D] outline-none resize-none"
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={!adminReplyText.trim() || isSendingReply}
+                        className="px-5 rounded-xl bg-[#B7FF35] hover:bg-[#C7FF45] text-[#090D0D] font-bold text-xs uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 shadow-lg shadow-[#B7FF35]/20 shrink-0"
+                      >
+                        <Send className="w-4 h-4 stroke-[2.5]" />
+                        <span>Reply</span>
+                      </button>
+                    </div>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#8C9891]">
+                  <div className="w-16 h-16 rounded-2xl bg-[#14201C] border border-white/10 flex items-center justify-center text-[#B7FF35] mb-4">
+                    <MessageSquare className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-base font-bold text-[#F2F5EF] mb-1">
+                    Select a Conversation
+                  </h4>
+                  <p className="text-xs max-w-sm leading-relaxed">
+                    Choose a customer inquiry from the left panel to review full case correspondence and dispatch official specialist replies.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* TAB: WEBSITE CONTROLS & EMERGENCY NOTICE             */}
         {/* ==================================================== */}
         {activeTab === 'settings' && (
           <div className="max-w-3xl space-y-6">
@@ -854,7 +1253,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                 <div>
                   <h3 className="text-lg font-bold text-[#F2F5EF]">Global Website Configuration</h3>
                   <p className="text-xs text-[#A0AAA3]">
-                    Changes made here instantly update WhatsApp links, emergency banners, and casework indicators across the public site.
+                    Configure official contact email, founder public attribution, and announcement banners.
                   </p>
                 </div>
               </div>
@@ -883,51 +1282,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                     className="w-full px-4 py-3 bg-[#090D0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-sm font-mono text-[#F2F5EF] outline-none"
                   />
                   <p className="text-[11px] text-[#8C9891] mt-1.5">
-                    Official inbox for case submissions and client correspondence (<code className="text-[#B7FF35]">metaresolveagency@proton.me</code>).
+                    Official inbox for case inquiries (<code className="text-[#B7FF35]">metaresolveagency@proton.me</code>).
                   </p>
-                </div>
-
-                {/* WhatsApp Digits */}
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase text-[#F2F5EF] mb-2">
-                    Official WhatsApp Number (Raw international digits for wa.me link)
-                  </label>
-                  <input
-                    type="text"
-                    value={siteConfig.whatsappNumber}
-                    onChange={(e) =>
-                      setSiteConfig({ ...siteConfig, whatsappNumber: e.target.value.replace(/[^0-9]/g, '') })
-                    }
-                    placeholder="923372430274"
-                    required
-                    className="w-full px-4 py-3 bg-[#090D0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-sm font-mono text-[#F2F5EF] outline-none"
-                  />
-                  <p className="text-[11px] text-[#8C9891] mt-1.5">
-                    Example: <code className="text-[#B7FF35]">923372430274</code> (Do not use '+', spaces, or dashes here).
-                  </p>
-                </div>
-
-                {/* WhatsApp Display */}
-                <div>
-                  <label className="block text-xs font-mono font-bold uppercase text-[#F2F5EF] mb-2">
-                    Display Phone Format (Visible to visitors)
-                  </label>
-                  <input
-                    type="text"
-                    value={siteConfig.whatsappDisplayNumber}
-                    onChange={(e) =>
-                      setSiteConfig({ ...siteConfig, whatsappDisplayNumber: e.target.value })
-                    }
-                    placeholder="+92 337 2430274"
-                    required
-                    className="w-full px-4 py-3 bg-[#090D0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-sm font-mono text-[#F2F5EF] outline-none"
-                  />
                 </div>
 
                 {/* Founder Name */}
                 <div>
                   <label className="block text-xs font-mono font-bold uppercase text-[#F2F5EF] mb-2">
-                    Founder / Lead Specialist Name
+                    Lead Specialist / Operations Name
                   </label>
                   <input
                     type="text"
@@ -935,158 +1297,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                     onChange={(e) =>
                       setSiteConfig({ ...siteConfig, founderName: e.target.value })
                     }
-                    placeholder="Adil Afridi"
+                    placeholder="META RESOLVE Specialist"
                     required
                     className="w-full px-4 py-3 bg-[#090D0D] border border-white/10 focus:border-[#B7FF35] rounded-xl text-sm text-[#F2F5EF] outline-none"
                   />
-                </div>
-
-                {/* Founder Profile Photo */}
-                {/* Founder Profile Photo */}
-                <div className="p-4 rounded-xl bg-[#090D0D] border border-white/5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-mono font-bold uppercase text-[#F2F5EF] block">
-                        Founder Profile Photo (Adil Afridi)
-                      </span>
-                      <span className="text-[11px] text-[#8C9891]">
-                        Uploaded photo is active for Adil Afridi on the website.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#86D416] via-[#B7FF35] to-[#467320] shrink-0">
-                      <div className="w-full h-full rounded-full overflow-hidden bg-[#0A0F0E]">
-                        <img
-                          src={siteConfig.founderAvatarUrl || '/images/adil-profile.jpg'}
-                          alt="Founder Preview"
-                          className="w-full h-full object-cover object-[center_15%]"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = '/adil-profile.jpg';
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                      <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#14201C] border border-[#B7FF35]/30 text-xs font-mono text-[#B7FF35] hover:bg-[#B7FF35]/10 cursor-pointer transition-colors">
-                        <span>Upload New Photo</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (uploadEvt) => {
-                                if (uploadEvt.target?.result) {
-                                  setSiteConfig({
-                                    ...siteConfig,
-                                    founderAvatarUrl: uploadEvt.target.result as string
-                                  });
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </label>
-
-                      {siteConfig.founderAvatarUrl && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const { founderAvatarUrl, ...rest } = siteConfig;
-                            setSiteConfig(rest);
-                          }}
-                          className="block text-[11px] font-mono text-[#FF5555] hover:underline"
-                        >
-                          Reset to default uploaded photo
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Co-Founder Profile Photo */}
-                <div className="p-4 rounded-xl bg-[#090D0D] border border-white/5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-mono font-bold uppercase text-[#F2F5EF] block">
-                        Co-Founder Profile Photo (Huzaifa)
-                      </span>
-                      <span className="text-[11px] text-[#8C9891]">
-                        Uploaded photo is active for Huzaifa on the website.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#86D416] via-[#B7FF35] to-[#467320] shrink-0">
-                      <div className="w-full h-full rounded-full overflow-hidden bg-[#0A0F0E] flex items-center justify-center">
-                        {siteConfig.huzaifaAvatarUrl ? (
-                          <img
-                            src={siteConfig.huzaifaAvatarUrl}
-                            alt="Huzaifa Preview"
-                            className="w-full h-full object-cover object-center"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/images/huzaifa-profile.jpg';
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src="/images/huzaifa-profile.jpg"
-                            alt="Huzaifa Preview"
-                            className="w-full h-full object-cover object-center"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/huzaifa-profile.jpg';
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                      <label className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#14201C] border border-[#B7FF35]/30 text-xs font-mono text-[#B7FF35] hover:bg-[#B7FF35]/10 cursor-pointer transition-colors">
-                        <span>Upload Huzaifa Photo</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (uploadEvt) => {
-                                if (uploadEvt.target?.result) {
-                                  setSiteConfig({
-                                    ...siteConfig,
-                                    huzaifaAvatarUrl: uploadEvt.target.result as string
-                                  });
-                                }
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </label>
-
-                      {siteConfig.huzaifaAvatarUrl && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const { huzaifaAvatarUrl, ...rest } = siteConfig;
-                            setSiteConfig(rest);
-                          }}
-                          className="block text-[11px] font-mono text-[#FF5555] hover:underline"
-                        >
-                          Reset photo
-                        </button>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
                 {/* Casework Status */}
@@ -1373,17 +1587,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitAdmin }) =
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                      `Hello ${selectedLead.name}, this is Adil Afridi from META RESOLVE regarding your case inquiry #${selectedLead.id}.`
-                    )}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-4 py-2.5 rounded-xl bg-[#15201C] hover:bg-[#1C2C27] border border-[#B7FF35]/40 text-[#B7FF35] text-xs font-bold flex items-center gap-1.5"
+                  <button
+                    onClick={() => {
+                      const email = selectedLead.email;
+                      setSelectedLead(null);
+                      setActiveTab('messages');
+                      setChatSearch(email);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#15201C] hover:bg-[#1C2C27] border border-[#B7FF35]/40 text-[#B7FF35] text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    <MessageSquare className="w-3.5 h-3.5 fill-current" />
-                    <span>WhatsApp Client</span>
-                  </a>
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Search in Customer Messages</span>
+                  </button>
                 </div>
               </div>
             </motion.div>

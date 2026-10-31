@@ -21,9 +21,17 @@ import {
   getAllUsers,
   saveAllUsers,
   createSession,
-  sanitizeUser
+  sanitizeUser,
+  getAllConversations,
+  getConversationById,
+  getConversationByToken,
+  createConversationRecord,
+  addVisitorMessageRecord,
+  addAdminReplyRecord,
+  updateConversationStatusRecord,
+  saveAllConversations
 } from './serverStorage.ts';
-import type { LeadStatus, PlatformType } from './serverStorage.ts';
+import type { LeadStatus, PlatformType, ConversationStatus } from './serverStorage.ts';
 
 // Load .env file with override option so updated local .env takes precedence if present
 dotenv.config({ override: true });
@@ -216,7 +224,8 @@ async function startServer() {
 
   // Admin Login Endpoint
   app.post('/api/admin/login', (req, res) => {
-    const { username, password } = req.body || {};
+    const username = req.body?.username || req.body?.adminId;
+    const password = req.body?.password;
 
     if (!username || !password) {
       return res.status(400).json({
@@ -451,26 +460,215 @@ async function startServer() {
     return res.json({ success: true, config });
   });
 
-  // Direct founder photo update endpoint
-  app.post('/api/founder-photo', (req, res) => {
-    const { photoDataUrl } = req.body || {};
-    if (!photoDataUrl || typeof photoDataUrl !== 'string') {
-      return res.status(400).json({ success: false, error: 'Invalid photo data' });
-    }
+  // ----------------------------------------------------
+  // PUBLIC VISITOR SUPPORT CHAT ENDPOINTS
+  // ----------------------------------------------------
 
-    const config = updateStoredSiteConfig({ founderAvatarUrl: photoDataUrl });
-    return res.json({ success: true, config });
+  // Start new support conversation
+  app.post(['/api/chat/start', '/chat/start'], (req, res) => {
+    try {
+      const { name, email, platform, message } = req.body || {};
+
+      const visitorName = String(name || '').trim();
+      const visitorEmail = String(email || '').trim().toLowerCase();
+      const text = String(message || '').trim();
+      const plat = (platform as PlatformType) || 'other';
+
+      if (!visitorName || visitorName.length < 2) {
+        return res.status(400).json({ success: false, error: 'Please enter your name.' });
+      }
+
+      if (!visitorEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(visitorEmail)) {
+        return res.status(400).json({ success: false, error: 'A valid email address is required so our team can follow up.' });
+      }
+
+      if (!text || text.length < 3) {
+        return res.status(400).json({ success: false, error: 'Please enter your case description (minimum 3 characters).' });
+      }
+
+      if (text.length > 5000) {
+        return res.status(400).json({ success: false, error: 'Message exceeds maximum allowable length.' });
+      }
+
+      const { conversation, accessToken } = createConversationRecord({
+        name: visitorName,
+        email: visitorEmail,
+        platform: plat,
+        message: text,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Support inquiry created successfully.',
+        conversationId: conversation.id,
+        accessToken,
+        conversation,
+      });
+    } catch (err: any) {
+      console.error('Error starting chat conversation:', err);
+      return res.status(500).json({ success: false, error: 'Could not create support message.' });
+    }
   });
 
-  // Direct huzaifa photo update endpoint
-  app.post('/api/huzaifa-photo', (req, res) => {
-    const { photoDataUrl } = req.body || {};
-    if (!photoDataUrl || typeof photoDataUrl !== 'string') {
-      return res.status(400).json({ success: false, error: 'Invalid photo data' });
+  // Fetch visitor conversation by ID and secure accessToken
+  app.get(['/api/chat/:id', '/chat/:id'], (req, res) => {
+    try {
+      const { id } = req.params;
+      const token = String(req.query.token || req.headers['x-chat-token'] || '').trim();
+
+      if (!token) {
+        return res.status(401).json({ success: false, error: 'Secure conversation token required.' });
+      }
+
+      const convo = getConversationByToken(id, token);
+      if (!convo) {
+        return res.status(404).json({ success: false, error: 'Conversation not found or access token invalid.' });
+      }
+
+      if (convo.unreadByVisitor) {
+        convo.unreadByVisitor = false;
+        const all = getAllConversations();
+        saveAllConversations(all.map((c) => (c.id === convo.id ? convo : c)));
+      }
+
+      return res.json({ success: true, conversation: convo });
+    } catch (err: any) {
+      console.error('Error fetching chat conversation:', err);
+      return res.status(500).json({ success: false, error: 'Error loading conversation.' });
+    }
+  });
+
+  // Add visitor message to existing conversation
+  app.post(['/api/chat/:id/message', '/chat/:id/message'], (req, res) => {
+    try {
+      const { id } = req.params;
+      const { token, message } = req.body || {};
+
+      const accessToken = String(token || req.headers['x-chat-token'] || '').trim();
+      const text = String(message || '').trim();
+
+      if (!accessToken) {
+        return res.status(401).json({ success: false, error: 'Secure conversation token required.' });
+      }
+
+      if (!text || text.length < 1) {
+        return res.status(400).json({ success: false, error: 'Message text cannot be empty.' });
+      }
+
+      if (text.length > 5000) {
+        return res.status(400).json({ success: false, error: 'Message exceeds maximum length.' });
+      }
+
+      const result = addVisitorMessageRecord(id, accessToken, text);
+      if (!result.success || !result.conversation) {
+        return res.status(403).json({ success: false, error: result.error || 'Failed to send message.' });
+      }
+
+      return res.json({
+        success: true,
+        conversation: result.conversation,
+      });
+    } catch (err: any) {
+      console.error('Error sending visitor message:', err);
+      return res.status(500).json({ success: false, error: 'Could not send message.' });
+    }
+  });
+
+  // ----------------------------------------------------
+  // ADMIN CONVERSATIONS ENDPOINTS (Session Protected)
+  // ----------------------------------------------------
+
+  // List all conversations with filters
+  app.get('/api/admin/conversations', (req, res) => {
+    const session = authenticateRequest(req);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin session required.' });
     }
 
-    const config = updateStoredSiteConfig({ huzaifaAvatarUrl: photoDataUrl });
-    return res.json({ success: true, config });
+    const { status } = req.query;
+    let conversations = getAllConversations();
+
+    if (status && typeof status === 'string' && status !== 'all') {
+      conversations = conversations.filter((c) => c.status === status);
+    }
+
+    return res.json({
+      success: true,
+      conversations,
+      unreadCount: conversations.filter((c) => c.unreadByAdmin).length,
+    });
+  });
+
+  // Get single conversation details & mark read by admin
+  app.get('/api/admin/conversations/:id', (req, res) => {
+    const session = authenticateRequest(req);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin session required.' });
+    }
+
+    const { id } = req.params;
+    const convo = getConversationById(id);
+    if (!convo) {
+      return res.status(404).json({ success: false, error: 'Conversation not found.' });
+    }
+
+    if (convo.unreadByAdmin) {
+      convo.unreadByAdmin = false;
+      const all = getAllConversations();
+      saveAllConversations(all.map((c) => (c.id === convo.id ? convo : c)));
+    }
+
+    return res.json({ success: true, conversation: convo });
+  });
+
+  // Admin sends reply to visitor
+  app.post('/api/admin/conversations/:id/reply', (req, res) => {
+    const session = authenticateRequest(req);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin session required.' });
+    }
+
+    const { id } = req.params;
+    const { replyText, senderName } = req.body || {};
+
+    const text = String(replyText || '').trim();
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Reply text cannot be empty.' });
+    }
+
+    const name = String(senderName || 'META RESOLVE Specialist').trim();
+    const result = addAdminReplyRecord(id, text, name);
+
+    if (!result.success || !result.conversation) {
+      return res.status(404).json({ success: false, error: result.error || 'Failed to post reply.' });
+    }
+
+    return res.json({
+      success: true,
+      conversation: result.conversation,
+    });
+  });
+
+  // Admin updates conversation status
+  app.patch('/api/admin/conversations/:id/status', (req, res) => {
+    const session = authenticateRequest(req);
+    if (!session) {
+      return res.status(401).json({ success: false, error: 'Unauthorized: Admin session required.' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body || {};
+
+    if (!status) {
+      return res.status(400).json({ success: false, error: 'Status is required.' });
+    }
+
+    const updated = updateConversationStatusRecord(id, status as ConversationStatus);
+    if (!updated) {
+      return res.status(404).json({ success: false, error: 'Conversation not found.' });
+    }
+
+    return res.json({ success: true, conversation: updated });
   });
 
   // ----------------------------------------------------

@@ -6,9 +6,8 @@ import {
   X,
   ArrowUpRight,
   Zap,
-  MessageCircle
+  MessageSquare
 } from 'lucide-react';
-import { getWhatsAppUrl } from '../config';
 
 interface NavbarProps {
   onOpenAssessment: () => void;
@@ -33,7 +32,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const navLinks = [
     { label: 'About', target: 'about' },
     { label: 'Services', target: 'services' },
-    { label: 'Specialists', target: 'team' },
     { label: 'Why Us', target: 'why-us' },
     { label: 'Results', target: 'results' },
     { label: 'Pricing', target: 'pricing' },
@@ -81,33 +79,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={link.target}
                   onClick={() => onScrollToSection(link.target)}
-                  className="text-sm font-medium text-[#A0AAA3] hover:text-[#F2F5EF] transition-colors tracking-wide relative group py-1 cursor-pointer"
+                  className="text-sm font-medium text-[#A0AAA3] hover:text-[#F2F5EF] transition-colors tracking-wide relative group py-1 cursor-pointer focus:outline-none"
                 >
-                  {link.label}
-                  <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-[#B7FF35] transition-all duration-200 group-hover:w-full" />
+                  <span className="relative z-10 transition-transform duration-200 group-hover:-translate-y-0.5 inline-block">
+                    {link.label}
+                  </span>
+                  <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-gradient-to-r from-[#86D416] via-[#B7FF35] to-[#B7FF35] transition-all duration-300 ease-out group-hover:w-full rounded-full shadow-[0_0_8px_rgba(183,255,53,0.6)]" />
                 </button>
               ))}
             </nav>
 
             {/* Right Action CTAs */}
             <div className="hidden sm:flex items-center gap-3">
-              <button
+              <motion.button
+                whileHover={{ y: -1.5, scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={onOpenAssessment}
-                className="px-3.5 py-2 text-xs font-semibold tracking-wide text-[#A0AAA3] hover:text-[#F2F5EF] bg-[#141A19] hover:bg-[#18201E] border border-white/10 rounded-full transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 text-xs font-semibold tracking-wide text-[#A0AAA3] hover:text-[#F2F5EF] bg-[#141A19] hover:bg-[#18201E] border border-white/10 hover:border-[#B7FF35]/40 rounded-full transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow-[0_0_15px_rgba(183,255,53,0.15)]"
                 id="btn-assessment-nav"
               >
                 <Zap className="w-3.5 h-3.5 text-[#B7FF35]" />
                 Free Ban Audit
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileHover={{ y: -1.5, scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => onScrollToSection('contact')}
-                className="px-4 py-2 text-xs uppercase tracking-wider font-bold text-[#090D0D] bg-[#B7FF35] hover:bg-[#C7FF45] rounded-full transition-all duration-200 shadow-lg shadow-[#B7FF35]/15 hover:shadow-[#B7FF35]/25 active:scale-95 flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 text-xs uppercase tracking-wider font-bold text-[#090D0D] bg-[#B7FF35] hover:bg-[#C7FF45] rounded-full transition-all duration-200 shadow-lg shadow-[#B7FF35]/15 hover:shadow-[0_0_20px_rgba(183,255,53,0.35)] flex items-center gap-1.5 cursor-pointer"
                 id="btn-get-help-nav"
               >
-                Get help
-                <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
-              </button>
+                <span>Get help</span>
+                <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </motion.button>
             </div>
 
             {/* Mobile Menu Toggle Button */}
@@ -156,15 +160,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               ))}
 
               <div className="pt-2 flex flex-col gap-3">
-                <a
-                  href={getWhatsAppUrl()}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent('metaresolve_open_chat'));
+                  }}
                   className="w-full py-3 text-xs font-bold uppercase tracking-wider text-[#090D0D] bg-[#B7FF35] hover:bg-[#C7FF45] rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-[#B7FF35]/20 cursor-pointer"
                 >
-                  <MessageCircle className="w-4 h-4 fill-current" />
-                  <span>Message Adil on WhatsApp</span>
-                </a>
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Chat with META RESOLVE</span>
+                </button>
 
                 <button
                   onClick={() => {

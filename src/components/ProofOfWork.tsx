@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Check, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 interface ProofOfWorkProps {
   onViewPortfolio?: () => void;
@@ -32,17 +32,7 @@ const CASES_DATA: CaseCardData[] = [
   },
 ];
 
-export const ProofOfWork: React.FC<ProofOfWorkProps> = ({ onViewPortfolio }) => {
-  const handlePortfolioClick = () => {
-    if (onViewPortfolio) {
-      onViewPortfolio();
-    } else {
-      const contactEl = document.getElementById('contact');
-      if (contactEl) {
-        contactEl.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  };
+export const ProofOfWork: React.FC<ProofOfWorkProps> = () => {
 
   return (
     <section className="py-24 lg:py-32 relative overflow-hidden bg-[#090D0D] border-t border-white/[0.05]" id="results">
@@ -70,7 +60,7 @@ export const ProofOfWork: React.FC<ProofOfWorkProps> = ({ onViewPortfolio }) => 
         </div>
 
         {/* 3-Column Responsive Case Study Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto mb-14 lg:mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           {CASES_DATA.map((item, idx) => (
             <motion.div
               key={item.id}
@@ -139,18 +129,6 @@ export const ProofOfWork: React.FC<ProofOfWorkProps> = ({ onViewPortfolio }) => 
               </div>
             </motion.div>
           ))}
-        </div>
-
-        {/* Centered Portfolio CTA Button */}
-        <div className="flex justify-center">
-          <button
-            onClick={handlePortfolioClick}
-            className="group px-7 py-3.5 rounded-full bg-[#111715] hover:bg-[#16201D] border border-white/15 hover:border-[#B7FF35] text-xs sm:text-sm font-semibold text-[#F2F5EF] hover:text-[#B7FF35] shadow-lg shadow-black/40 transition-all duration-200 flex items-center gap-2.5 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
-            id="view-portfolio-btn"
-          >
-            <span>View Full Portfolio</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform text-[#A0AAA3] group-hover:text-[#B7FF35]" />
-          </button>
         </div>
 
       </div>

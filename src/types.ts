@@ -108,8 +108,6 @@ export interface SiteConfig {
   whatsappNumber: string;
   whatsappDisplayNumber: string;
   founderName: string;
-  founderAvatarUrl?: string;
-  huzaifaAvatarUrl?: string;
   caseworkStatus: 'Open' | 'High Priority Only' | 'Limited Intake';
   bannerAnnouncement: string;
   bannerEnabled: boolean;
@@ -137,3 +135,30 @@ export interface AuthResponse {
   error?: string;
   message?: string;
 }
+
+export type ConversationStatus = 'new' | 'open' | 'in_progress' | 'replied' | 'resolved';
+
+export interface ChatMessage {
+  id: string;
+  sender: 'visitor' | 'admin';
+  senderName: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface ChatConversation {
+  id: string;
+  accessToken: string;
+  visitorName: string;
+  visitorEmail: string;
+  platform: PlatformType;
+  status: ConversationStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageText: string;
+  lastMessageTime: string;
+  unreadByAdmin: boolean;
+  unreadByVisitor: boolean;
+  messages: ChatMessage[];
+}
+

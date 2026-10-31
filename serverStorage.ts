@@ -53,13 +53,37 @@ export interface LeadRecord {
   adminNotes?: string;
 }
 
+export type ConversationStatus = 'new' | 'open' | 'in_progress' | 'replied' | 'resolved';
+
+export interface ChatMessage {
+  id: string;
+  sender: 'visitor' | 'admin';
+  senderName: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface ChatConversation {
+  id: string; // Unique Case Reference (e.g. "MR-CHAT-849201")
+  accessToken: string; // Secure token for visitor access
+  visitorName: string;
+  visitorEmail: string;
+  platform: PlatformType;
+  status: ConversationStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastMessageText: string;
+  lastMessageTime: string;
+  unreadByAdmin: boolean;
+  unreadByVisitor: boolean;
+  messages: ChatMessage[];
+}
+
 export interface SiteConfig {
   officialEmail?: string;
   whatsappNumber: string;
   whatsappDisplayNumber: string;
   founderName: string;
-  founderAvatarUrl?: string;
-  huzaifaAvatarUrl?: string;
   caseworkStatus: 'Open' | 'High Priority Only' | 'Limited Intake';
   bannerAnnouncement: string;
   bannerEnabled: boolean;
@@ -67,11 +91,9 @@ export interface SiteConfig {
 
 const DEFAULT_SITE_CONFIG: SiteConfig = {
   officialEmail: 'metaresolveagency@proton.me',
-  whatsappNumber: '923372430274',
-  whatsappDisplayNumber: '+92 337 2430274',
-  founderName: 'Adil Afridi',
-  founderAvatarUrl: '/images/adil-profile.jpg',
-  huzaifaAvatarUrl: '/images/huzaifa-profile.jpg',
+  whatsappNumber: '',
+  whatsappDisplayNumber: '',
+  founderName: 'META RESOLVE Operations',
   caseworkStatus: 'Open',
   bannerAnnouncement: 'Priority Casework Queue Active: 24/7 Account Recovery & Direct Appeals Support',
   bannerEnabled: true,
@@ -155,6 +177,47 @@ const CASES_FILE = path.join(DATA_DIR, 'cases.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'user_sessions.json');
+const CONVERSATIONS_FILE = path.join(DATA_DIR, 'conversations.json');
+
+const INITIAL_CONVERSATIONS: ChatConversation[] = [
+  {
+    id: 'MR-CHAT-921448',
+    accessToken: 'sec_' + crypto.randomBytes(24).toString('hex'),
+    visitorName: 'Elena Rostova',
+    visitorEmail: 'elena.rostova@creatorpulse.net',
+    platform: 'instagram',
+    status: 'open',
+    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    lastMessageText: 'Yes, we have full access to the primary registered email and government ID matching the business registration.',
+    lastMessageTime: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    unreadByAdmin: true,
+    unreadByVisitor: false,
+    messages: [
+      {
+        id: 'msg-1',
+        sender: 'visitor',
+        senderName: 'Elena Rostova',
+        text: 'Hello META RESOLVE team, our verified Instagram creator account was locked due to a 2FA loop after a phone upgrade. Can you help us file an appeal?',
+        timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+      },
+      {
+        id: 'msg-2',
+        sender: 'admin',
+        senderName: 'META RESOLVE Specialist',
+        text: 'Hello Elena. We have reviewed your case parameters. 2FA device sync resets typically take 24–48 hours through our platform partner verification channel. Do you have access to the original registered email?',
+        timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+      },
+      {
+        id: 'msg-3',
+        sender: 'visitor',
+        senderName: 'Elena Rostova',
+        text: 'Yes, we have full access to the primary registered email and government ID matching the business registration.',
+        timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      }
+    ]
+  }
+];
 
 // Global in-memory fallback cache for serverless environments
 const globalStorage = global as unknown as {
@@ -162,6 +225,7 @@ const globalStorage = global as unknown as {
   inMemoryConfig?: SiteConfig;
   inMemoryUsers?: StoredUser[];
   inMemorySessions?: UserSession[];
+  inMemoryConversations?: ChatConversation[];
 };
 
 function ensureDataDirectory(): void {
@@ -184,6 +248,9 @@ function initFiles(): void {
     }
     if (!fs.existsSync(CONFIG_FILE)) {
       fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_SITE_CONFIG, null, 2), 'utf-8');
+    }
+    if (!fs.existsSync(CONVERSATIONS_FILE)) {
+      fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(INITIAL_CONVERSATIONS, null, 2), 'utf-8');
     }
     if (!fs.existsSync(USERS_FILE)) {
       // Seed initial verified demo user
@@ -605,4 +672,191 @@ export function resetPasswordWithToken(token: string, newPassword: string): { su
   saveAllUsers(users);
   return { success: true };
 }
+
+// ----------------------------------------------------
+// Secure Customer Support Chat & Conversations Storage
+// ----------------------------------------------------
+
+export function getAllConversations(): ChatConversation[] {
+  try {
+    if (fs.existsSync(CONVERSATIONS_FILE)) {
+      const content = fs.readFileSync(CONVERSATIONS_FILE, 'utf-8');
+      const convos: ChatConversation[] = JSON.parse(content);
+      if (Array.isArray(convos)) {
+        globalStorage.inMemoryConversations = convos;
+        return convos;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading conversations from disk:', err);
+  }
+
+  if (!globalStorage.inMemoryConversations) {
+    globalStorage.inMemoryConversations = [...INITIAL_CONVERSATIONS];
+  }
+  return globalStorage.inMemoryConversations;
+}
+
+export function saveAllConversations(conversations: ChatConversation[]): boolean {
+  globalStorage.inMemoryConversations = conversations;
+  try {
+    ensureDataDirectory();
+    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversations, null, 2), 'utf-8');
+    return true;
+  } catch (err) {
+    console.error('Error saving conversations to disk:', err);
+    return false;
+  }
+}
+
+export function getConversationById(id: string): ChatConversation | null {
+  const convos = getAllConversations();
+  return convos.find((c) => c.id === id) || null;
+}
+
+export function getConversationByToken(id: string, token: string): ChatConversation | null {
+  if (!id || !token) return null;
+  const convo = getConversationById(id);
+  if (!convo) return null;
+  
+  // Timing safe or direct compare of the access token
+  if (convo.accessToken !== token.trim()) {
+    return null;
+  }
+  return convo;
+}
+
+export function createConversationRecord(data: {
+  name: string;
+  email: string;
+  platform: PlatformType;
+  message: string;
+}): { conversation: ChatConversation; accessToken: string } {
+  const convos = getAllConversations();
+  const timestamp = new Date().toISOString();
+
+  // Generate unique Case / Chat Reference: MR-CHAT-XXXXXX
+  let convoId = '';
+  do {
+    convoId = `MR-CHAT-${Math.floor(100000 + Math.random() * 900000)}`;
+  } while (convos.some((c) => c.id === convoId));
+
+  const accessToken = 'sec_' + crypto.randomBytes(24).toString('hex');
+  const messageId = 'msg-' + crypto.randomBytes(8).toString('hex');
+
+  const initialMsg: ChatMessage = {
+    id: messageId,
+    sender: 'visitor',
+    senderName: data.name.trim(),
+    text: data.message.trim(),
+    timestamp,
+  };
+
+  const newConvo: ChatConversation = {
+    id: convoId,
+    accessToken,
+    visitorName: data.name.trim(),
+    visitorEmail: data.email.trim().toLowerCase(),
+    platform: data.platform || 'other',
+    status: 'new',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    lastMessageText: data.message.trim(),
+    lastMessageTime: timestamp,
+    unreadByAdmin: true,
+    unreadByVisitor: false,
+    messages: [initialMsg],
+  };
+
+  convos.unshift(newConvo);
+  saveAllConversations(convos);
+
+  return { conversation: newConvo, accessToken };
+}
+
+export function addVisitorMessageRecord(
+  id: string,
+  token: string,
+  text: string
+): { success: boolean; conversation?: ChatConversation; error?: string } {
+  const convo = getConversationByToken(id, token);
+  if (!convo) {
+    return { success: false, error: 'Unauthorized or conversation not found.' };
+  }
+
+  const timestamp = new Date().toISOString();
+  const messageId = 'msg-' + crypto.randomBytes(8).toString('hex');
+
+  const newMsg: ChatMessage = {
+    id: messageId,
+    sender: 'visitor',
+    senderName: convo.visitorName,
+    text: text.trim(),
+    timestamp,
+  };
+
+  convo.messages.push(newMsg);
+  convo.updatedAt = timestamp;
+  convo.lastMessageText = text.trim();
+  convo.lastMessageTime = timestamp;
+  convo.unreadByAdmin = true;
+  if (convo.status === 'resolved' || convo.status === 'replied') {
+    convo.status = 'open';
+  }
+
+  const convos = getAllConversations();
+  const updated = convos.map((c) => (c.id === convo.id ? convo : c));
+  saveAllConversations(updated);
+
+  return { success: true, conversation: convo };
+}
+
+export function addAdminReplyRecord(
+  id: string,
+  replyText: string,
+  adminName: string = 'META RESOLVE Specialist'
+): { success: boolean; conversation?: ChatConversation; error?: string } {
+  const convos = getAllConversations();
+  const convo = convos.find((c) => c.id === id);
+  if (!convo) {
+    return { success: false, error: 'Conversation not found.' };
+  }
+
+  const timestamp = new Date().toISOString();
+  const messageId = 'msg-' + crypto.randomBytes(8).toString('hex');
+
+  const adminMsg: ChatMessage = {
+    id: messageId,
+    sender: 'admin',
+    senderName: adminName,
+    text: replyText.trim(),
+    timestamp,
+  };
+
+  convo.messages.push(adminMsg);
+  convo.updatedAt = timestamp;
+  convo.lastMessageText = replyText.trim();
+  convo.lastMessageTime = timestamp;
+  convo.status = 'replied';
+  convo.unreadByAdmin = false;
+  convo.unreadByVisitor = true;
+
+  saveAllConversations(convos);
+  return { success: true, conversation: convo };
+}
+
+export function updateConversationStatusRecord(
+  id: string,
+  status: ConversationStatus
+): ChatConversation | null {
+  const convos = getAllConversations();
+  const convo = convos.find((c) => c.id === id);
+  if (!convo) return null;
+
+  convo.status = status;
+  convo.updatedAt = new Date().toISOString();
+  saveAllConversations(convos);
+  return convo;
+}
+
 

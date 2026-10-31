@@ -16,11 +16,11 @@ import {
   Video,
   Send,
   Twitter,
-  MessageCircle
+  MessageCircle,
+  MessageSquare
 } from 'lucide-react';
 import { PLATFORMS_LIST } from '../data/mockData';
 import { PlatformType } from '../types';
-import { getWhatsAppUrl, WHATSAPP_DISPLAY_NUMBER } from '../config';
 
 interface HeroProps {
   onScrollToSection: (sectionId: string) => void;
@@ -121,35 +121,39 @@ export const Hero: React.FC<HeroProps> = ({
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <button
+              <motion.button
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onScrollToSection('contact')}
-                className="bg-[#B7FF35] text-[#090D0D] px-7 py-4 rounded-xl font-bold flex items-center justify-center gap-2 group transition-all shadow-[0_0_20px_rgba(183,255,53,0.3)] hover:bg-[#C7FF45] active:scale-[0.98] cursor-pointer"
+                className="bg-[#B7FF35] text-[#090D0D] px-7 py-4 rounded-xl font-bold flex items-center justify-center gap-2 group transition-all duration-200 shadow-[0_0_20px_rgba(183,255,53,0.3)] hover:shadow-[0_0_30px_rgba(183,255,53,0.5)] hover:bg-[#C7FF45] cursor-pointer"
                 id="hero-primary-cta"
               >
                 <span>Request Case Review</span>
-                <ArrowUpRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </button>
+                <ArrowUpRight className="w-4 h-4 stroke-[2.5] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-200" />
+              </motion.button>
 
-              <a
-                href={getWhatsAppUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="px-6 py-4 rounded-xl font-bold bg-[#141B19] hover:bg-[#182320] border border-[#B7FF35]/40 hover:border-[#B7FF35] text-[#F2F5EF] hover:text-[#B7FF35] transition-all flex items-center justify-center gap-2.5 shadow-lg group cursor-pointer"
-                id="hero-whatsapp-cta"
+              <motion.button
+                type="button"
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => window.dispatchEvent(new CustomEvent('metaresolve_open_chat', { detail: { platform: activePill } }))}
+                className="px-6 py-4 rounded-xl font-bold bg-[#141B19] hover:bg-[#182320] border border-[#B7FF35]/40 hover:border-[#B7FF35] text-[#F2F5EF] hover:text-[#B7FF35] transition-all duration-200 flex items-center justify-center gap-2.5 shadow-lg hover:shadow-[0_0_20px_rgba(183,255,53,0.2)] group cursor-pointer"
+                id="hero-chat-cta"
               >
-                <MessageCircle className="w-4 h-4 text-[#B7FF35]" />
-                <span>Chat with Adil</span>
-                <span className="text-xs font-mono text-[#8C9891] hidden md:inline">({WHATSAPP_DISPLAY_NUMBER})</span>
-              </a>
+                <MessageSquare className="w-4 h-4 text-[#B7FF35]" />
+                <span>Live Support Chat</span>
+              </motion.button>
 
-              <button
+              <motion.button
+                whileHover={{ y: -2, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onScrollToSection('services')}
-                className="px-6 py-4 rounded-xl font-bold border border-white/10 hover:bg-white/5 text-[#A0AAA3] hover:text-[#F2F5EF] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="px-6 py-4 rounded-xl font-bold border border-white/10 hover:border-[#B7FF35]/40 hover:bg-[#141A19] text-[#A0AAA3] hover:text-[#F2F5EF] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
                 id="hero-secondary-cta"
               >
                 <Play className="w-3.5 h-3.5 fill-current text-[#B7FF35]" />
                 <span>Services</span>
-              </button>
+              </motion.button>
             </div>
 
             {/* Micro reassurance badges */}

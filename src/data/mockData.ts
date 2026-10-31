@@ -1,7 +1,4 @@
 import { ServiceItem, TeamMember, PricingPlan, CaseStudy, Testimonial } from '../types';
-import { getWhatsAppUrl, getHuzaifaWhatsAppUrl, ADIL_PROFILE_IMAGE, HUZAIFA_PROFILE_IMAGE } from '../config';
-import adilImg from '../assets/images/adil-profile.jpg';
-import huzaifaImg from '../assets/images/huzaifa-profile.jpg';
 
 export const PLATFORMS_LIST = [
   { id: 'instagram', label: 'Instagram', icon: 'Instagram' },
@@ -123,48 +120,7 @@ export const SERVICES_DATA: ServiceItem[] = [
   }
 ];
 
-export const TEAM_MEMBERS: TeamMember[] = [
-  {
-    id: 'adil-afridi',
-    name: 'Adil Afridi',
-    role: 'FOUNDER & LEAD RECOVERY SPECIALIST',
-    avatarUrl: ADIL_PROFILE_IMAGE,
-    bio: 'Leads complex account recovery cases, platform appeals, and high-priority client resolutions. Focused on strategic recovery solutions and helping clients navigate difficult account restrictions.',
-    serviceTags: [
-      'Account Recovery',
-      'Platform Appeals',
-      'Business Account Recovery',
-      'Meta Resolution',
-      'Client Strategy',
-      'Account Restrictions'
-    ],
-    ctaText: 'Message Adil on WhatsApp',
-    isFounder: true,
-    casesResolved: 820,
-    status: 'Direct WhatsApp Line',
-    directContactUrl: getWhatsAppUrl('Hello Adil, I would like to discuss an account recovery issue with META RESOLVE.')
-  },
-  {
-    id: 'huzaifa',
-    name: 'Huzaifa',
-    role: 'CO-FOUNDER & RECOVERY SPECIALIST',
-    avatarUrl: HUZAIFA_PROFILE_IMAGE,
-    bio: 'Handles account recovery cases across major social and messaging platforms, with a focus on fast communication, appeals, and practical recovery support.',
-    serviceTags: [
-      'Instagram Recovery',
-      'Facebook Recovery',
-      'TikTok Recovery',
-      'WhatsApp Recovery',
-      'Telegram Recovery',
-      'X Account Recovery'
-    ],
-    ctaText: '💬 Message Huzaifa',
-    isFounder: false,
-    casesResolved: 640,
-    status: 'Direct WhatsApp Line',
-    directContactUrl: 'https://wa.me/447898154326?text=' + encodeURIComponent('Hello Huzaifa, I would like to discuss an account recovery case with META RESOLVE.')
-  }
-];
+export const TEAM_MEMBERS: TeamMember[] = [];
 
 export const PRICING_PLANS: PricingPlan[] = [
   {

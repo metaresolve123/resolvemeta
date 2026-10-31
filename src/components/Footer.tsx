@@ -2,14 +2,8 @@ import React from 'react';
 import { ShieldCheck, ArrowUpRight, Twitter, Linkedin, MessageSquare, Instagram, Github, ArrowRight, MessageCircle, Mail } from 'lucide-react';
 import { PlatformType } from '../types';
 import {
-  ADIL_WHATSAPP_NUMBER,
-  ADIL_WHATSAPP_DISPLAY_NUMBER,
-  HUZAIFA_WHATSAPP_NUMBER,
-  HUZAIFA_WHATSAPP_DISPLAY_NUMBER,
   OFFICIAL_EMAIL,
-  OFFICIAL_EMAIL_MAILTO,
-  getWhatsAppUrl,
-  getHuzaifaWhatsAppUrl
+  OFFICIAL_EMAIL_MAILTO
 } from '../config';
 
 interface FooterProps {
@@ -45,34 +39,22 @@ export const Footer: React.FC<FooterProps> = ({ onScrollToSection, onSelectPlatf
               The premier escalation agency for disabled, restricted, and suspended enterprise social accounts, ad portfolios, and creator channels.
             </p>
 
-            {/* Direct WhatsApp Contact Cards for Leadership */}
+            {/* Live Support Chat & Official Email in Footer */}
             <div className="p-3.5 rounded-xl bg-[#111716] border border-[#B7FF35]/30 max-w-sm space-y-2.5">
               <div className="flex items-center justify-between text-[11px] font-mono">
-                <span className="text-[#B7FF35] font-bold">OFFICIAL WHATSAPP LINES</span>
-                <span className="text-[#A0AAA3]">ACTIVE QUEUE</span>
+                <span className="text-[#B7FF35] font-bold">CLIENT SUPPORT DESK</span>
+                <span className="text-[#A0AAA3]">PORTAL ONLINE</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={`https://wa.me/${ADIL_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Adil, I would like to discuss an account recovery case with META RESOLVE.')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="py-2 px-2.5 rounded-lg bg-[#B7FF35] hover:bg-[#C7FF45] text-[#090D0D] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#B7FF35]/15 cursor-pointer text-center"
-                  id="footer-whatsapp-adil-btn"
+              <div>
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent('metaresolve_open_chat'))}
+                  className="w-full py-2.5 px-3 rounded-lg bg-[#B7FF35] hover:bg-[#C7FF45] text-[#090D0D] text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-[#B7FF35]/15 cursor-pointer"
+                  id="footer-chat-btn"
                 >
-                  <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-                  <span className="truncate">Adil (Founder)</span>
-                </a>
-
-                <a
-                  href={`https://wa.me/${HUZAIFA_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Huzaifa, I would like to discuss an account recovery case with META RESOLVE.')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="py-2 px-2.5 rounded-lg bg-[#182320] hover:bg-[#B7FF35] text-[#F2F5EF] hover:text-[#090D0D] border border-[#B7FF35]/30 hover:border-[#B7FF35] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer text-center"
-                  id="footer-whatsapp-huzaifa-btn"
-                >
-                  <MessageCircle className="w-3.5 h-3.5 fill-current shrink-0" />
-                  <span className="truncate">Huzaifa (Co-Founder)</span>
-                </a>
+                  <MessageSquare className="w-4 h-4 fill-current shrink-0" />
+                  <span>Chat with META RESOLVE</span>
+                </button>
               </div>
 
               {/* Official Email Link in Footer */}
@@ -143,14 +125,6 @@ export const Footer: React.FC<FooterProps> = ({ onScrollToSection, onSelectPlatf
                   className="hover:text-[#B7FF35] transition-colors cursor-pointer"
                 >
                   Recovery Services
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onScrollToSection('team')}
-                  className="hover:text-[#B7FF35] transition-colors cursor-pointer"
-                >
-                  Recovery Specialists
                 </button>
               </li>
               <li>

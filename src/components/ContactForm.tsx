@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  MessageCircle,
+  MessageSquare,
   Mail,
   MapPin,
   ArrowRight,
@@ -20,12 +20,6 @@ import {
 } from 'lucide-react';
 import { PlatformType } from '../types';
 import {
-  ADIL_WHATSAPP_NUMBER,
-  ADIL_WHATSAPP_DISPLAY_NUMBER,
-  HUZAIFA_WHATSAPP_NUMBER,
-  HUZAIFA_WHATSAPP_DISPLAY_NUMBER,
-  getActiveWhatsAppNumber,
-  getActiveWhatsAppDisplayNumber,
   getActiveOfficialEmail,
   OFFICIAL_EMAIL
 } from '../config';
@@ -80,7 +74,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({ initialPlatform = 'ins
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [submittedCaseId, setSubmittedCaseId] = useState<string>('');
-  const [waRedirectUrl, setWaRedirectUrl] = useState<string>('');
   const [copiedTicket, setCopiedTicket] = useState(false);
 
   // Synchronize when initialPlatform prop updates from other CTA clicks
@@ -93,8 +86,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({ initialPlatform = 'ins
     }
   }, [initialPlatform]);
 
-  const activeWhatsAppNumber = getActiveWhatsAppNumber() || ADIL_WHATSAPP_NUMBER;
-  const activeWhatsAppDisplay = getActiveWhatsAppDisplayNumber();
   const activeOfficialEmail = getActiveOfficialEmail() || OFFICIAL_EMAIL;
 
   const handleResetForm = () => {
@@ -109,7 +100,6 @@ export const ContactForm: React.FC<ContactFormProps> = ({ initialPlatform = 'ins
     setIsSubmitting(false);
     setIsSuccess(false);
     setSubmittedCaseId('');
-    setWaRedirectUrl('');
     setCopiedTicket(false);
   };
 
@@ -204,33 +194,11 @@ export const ContactForm: React.FC<ContactFormProps> = ({ initialPlatform = 'ins
       console.error('Error recording case to server:', saveErr);
     }
 
-    // Construct structured WhatsApp pre-filled message (preserving exact format)
-    const waMessage = `Hello Adil, I need help with an account recovery issue.
-
-Name: ${formData.fullName.trim()}
-Phone/WhatsApp: ${formData.phone.trim()}
-Email: ${formData.email.trim()}
-Service: ${formData.service}
-Case Ticket: ${caseId}
-Case Details: ${formData.details.trim()}
-
-I would like to discuss my case with META RESOLVE.`;
-
-    const waUrl = `https://wa.me/${activeWhatsAppNumber}?text=${encodeURIComponent(waMessage)}`;
-    setWaRedirectUrl(waUrl);
-
-    // Realistic brief dispatch animation then trigger success state and WhatsApp window
+    // Transition to success state and enable instant live chat option
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-
-      // Open WhatsApp chat in a new tab
-      try {
-        window.open(waUrl, '_blank', 'noopener,noreferrer');
-      } catch (openErr) {
-        console.warn('Popup blocked, available via direct link in confirmation', openErr);
-      }
-    }, 550);
+    }, 400);
   };
 
   return (
@@ -262,55 +230,32 @@ I would like to discuss my case with META RESOLVE.`;
 
                 {/* Subtitle / Intro Copy */}
                 <p className="mt-4 sm:mt-5 text-sm sm:text-base text-[#8C9891] leading-relaxed">
-                  Fill in the form and we’ll reach out within a few hours — or message us directly on WhatsApp for the fastest response.
+                  Fill in the form to open a dedicated case ticket — or start an instant conversation via our live customer support chat.
                 </p>
 
                 {/* Contact Information Rows */}
                 <div className="mt-8 sm:mt-10 space-y-3.5 sm:space-y-4">
                   
-                  {/* Adil Afridi — Founder WhatsApp Row */}
-                  <a
-                    href={`https://wa.me/${ADIL_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Adil, I would like to discuss an account recovery case with META RESOLVE.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 p-3.5 -mx-3.5 rounded-xl transition-all duration-200 hover:bg-white/[0.03] group cursor-pointer border border-transparent hover:border-white/[0.06]"
-                    id="contact-info-whatsapp-adil"
+                  {/* Live Customer Support Chat Row */}
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new CustomEvent('metaresolve_open_chat'))}
+                    className="w-full flex items-center gap-4 p-3.5 -mx-3.5 rounded-xl transition-all duration-200 bg-[#121B18]/70 hover:bg-[#16231F] group cursor-pointer border border-[#B7FF35]/30 hover:border-[#B7FF35] text-left shadow-[0_0_20px_rgba(183,255,53,0.08)]"
+                    id="contact-info-live-chat"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-[#14201C] border border-[#B7FF35]/30 flex items-center justify-center shrink-0 group-hover:border-[#B7FF35] group-hover:shadow-[0_0_15px_rgba(183,255,53,0.25)] transition-all">
-                      <MessageCircle className="w-5 h-5 text-[#B7FF35]" />
+                    <div className="w-11 h-11 rounded-xl bg-[#14201C] border border-[#B7FF35]/40 flex items-center justify-center shrink-0 group-hover:border-[#B7FF35] group-hover:shadow-[0_0_15px_rgba(183,255,53,0.35)] transition-all">
+                      <MessageSquare className="w-5 h-5 text-[#B7FF35]" />
                     </div>
                     <div>
-                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#8C9891] flex items-center gap-2">
-                        <span>Adil Afridi — Founder</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#B7FF35]/15 text-[#B7FF35] font-bold">WHATSAPP</span>
+                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#B7FF35] flex items-center gap-2 font-bold">
+                        <span>24/7 Customer Support</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#B7FF35] animate-ping" />
                       </div>
-                      <div className="text-base font-semibold text-white group-hover:text-[#B7FF35] transition-colors font-mono">
-                        {ADIL_WHATSAPP_DISPLAY_NUMBER}
-                      </div>
-                    </div>
-                  </a>
-
-                  {/* Huzaifa — Co-Founder WhatsApp Row */}
-                  <a
-                    href={`https://wa.me/${HUZAIFA_WHATSAPP_NUMBER}?text=${encodeURIComponent('Hello Huzaifa, I would like to discuss an account recovery case with META RESOLVE.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 p-3.5 -mx-3.5 rounded-xl transition-all duration-200 hover:bg-white/[0.03] group cursor-pointer border border-transparent hover:border-white/[0.06]"
-                    id="contact-info-whatsapp-huzaifa"
-                  >
-                    <div className="w-11 h-11 rounded-xl bg-[#14201C] border border-[#B7FF35]/30 flex items-center justify-center shrink-0 group-hover:border-[#B7FF35] group-hover:shadow-[0_0_15px_rgba(183,255,53,0.25)] transition-all">
-                      <MessageCircle className="w-5 h-5 text-[#B7FF35]" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-mono uppercase tracking-wider text-[#8C9891] flex items-center gap-2">
-                        <span>Huzaifa — Co-Founder</span>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#B7FF35]/15 text-[#B7FF35] font-bold">WHATSAPP</span>
-                      </div>
-                      <div className="text-base font-semibold text-white group-hover:text-[#B7FF35] transition-colors font-mono">
-                        {HUZAIFA_WHATSAPP_DISPLAY_NUMBER}
+                      <div className="text-sm sm:text-base font-semibold text-white group-hover:text-[#B7FF35] transition-colors">
+                        Start Instant Portal Chat →
                       </div>
                     </div>
-                  </a>
+                  </button>
 
                   {/* Email Row */}
                   <a
@@ -540,11 +485,13 @@ I would like to discuss my case with META RESOLVE.`;
 
                     {/* Submit Button */}
                     <div className="pt-2">
-                      <button
+                      <motion.button
                         type="submit"
                         disabled={isSubmitting}
-                        className="w-full bg-gradient-to-r from-[#A3F226] via-[#B7FF35] to-[#C8FF52] hover:from-[#B7FF35] hover:to-[#D5FF6E] text-[#090D0D] font-bold text-base sm:text-lg py-4 px-6 rounded-xl transition-all duration-300 shadow-[0_0_25px_rgba(183,255,53,0.32)] hover:shadow-[0_0_35px_rgba(183,255,53,0.48)] flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-85 active:scale-[0.99] relative overflow-hidden"
-                        id="contact-form-submit-whatsapp"
+                        whileHover={!isSubmitting ? { y: -2, scale: 1.01 } : {}}
+                        whileTap={!isSubmitting ? { scale: 0.98 } : {}}
+                        className="w-full bg-gradient-to-r from-[#A3F226] via-[#B7FF35] to-[#C8FF52] hover:from-[#B7FF35] hover:to-[#D5FF6E] text-[#090D0D] font-bold text-base sm:text-lg py-4 px-6 rounded-xl transition-all duration-300 shadow-[0_0_25px_rgba(183,255,53,0.32)] hover:shadow-[0_0_35px_rgba(183,255,53,0.5)] flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-85 relative overflow-hidden"
+                        id="contact-form-submit-ticket"
                       >
                         <AnimatePresence mode="wait">
                           {isSubmitting ? (
@@ -557,7 +504,7 @@ I would like to discuss my case with META RESOLVE.`;
                               className="flex items-center gap-2"
                             >
                               <Loader2 className="w-5 h-5 animate-spin" />
-                              <span>Preparing Case File...</span>
+                              <span>Submitting Case File...</span>
                             </motion.div>
                           ) : (
                             <motion.div
@@ -568,12 +515,12 @@ I would like to discuss my case with META RESOLVE.`;
                               transition={{ duration: 0.2 }}
                               className="flex items-center gap-2"
                             >
-                              <span>Send via WhatsApp</span>
-                              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                              <span>Submit Recovery Case Ticket</span>
+                              <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-200" />
                             </motion.div>
                           )}
                         </AnimatePresence>
-                      </button>
+                      </motion.button>
 
                       {/* Disclaimer below button */}
                       <p className="text-xs text-center text-[#738279] mt-3.5 font-normal">
@@ -676,7 +623,7 @@ I would like to discuss my case with META RESOLVE.`;
                       transition={{ delay: 0.4, duration: 0.4 }}
                       className="text-xs sm:text-sm text-[#A0AAA3] max-w-md mx-auto leading-relaxed mb-6"
                     >
-                      Your case details for <span className="text-white font-medium">{formData.service}</span> have been logged and routed to Adil Afridi &amp; Huzaifa. A direct WhatsApp line has been opened.
+                      Your case details for <span className="text-white font-medium">{formData.service}</span> have been securely logged into our portal. You can start a live customer support chat immediately with your details pre-loaded.
                     </motion.p>
 
                     {/* Case Ticket ID Badge with One-click Copy */}
@@ -720,23 +667,33 @@ I would like to discuss my case with META RESOLVE.`;
                       </button>
                     </motion.div>
 
-                    {/* Primary WhatsApp Action & Secondary Reset Action */}
+                    {/* Primary Chat Action & Secondary Reset Action */}
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5, duration: 0.4 }}
                       className="w-full max-w-md space-y-3"
                     >
-                      <a
-                        href={waRedirectUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent('metaresolve_open_chat', {
+                              detail: {
+                                name: formData.fullName,
+                                email: formData.email,
+                                platform: formData.service,
+                                initialMessage: `Hello, I just submitted case #${submittedCaseId} regarding ${formData.service}. Could you review this case?`
+                              }
+                            })
+                          );
+                        }}
                         className="w-full bg-gradient-to-r from-[#A3F226] via-[#B7FF35] to-[#C8FF52] hover:from-[#B7FF35] hover:to-[#D5FF6E] text-[#090D0D] font-bold text-sm sm:text-base py-3.5 px-6 rounded-xl transition-all duration-300 shadow-[0_0_25px_rgba(183,255,53,0.32)] hover:shadow-[0_0_35px_rgba(183,255,53,0.48)] flex items-center justify-center gap-2 group cursor-pointer"
                       >
-                        <MessageCircle className="w-5 h-5 text-[#090D0D]" />
-                        <span>Open WhatsApp Conversation</span>
+                        <MessageSquare className="w-5 h-5 text-[#090D0D]" />
+                        <span>Open Live Support Chat</span>
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </a>
+                      </button>
 
                       <button
                         type="button"

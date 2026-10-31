@@ -3,18 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Clock, Zap, Info, MessageCircle, ChevronDown, User, X } from 'lucide-react';
+import React from 'react';
+import { motion } from 'motion/react';
+import { Clock, Zap, Info, MessageSquare, ArrowRight } from 'lucide-react';
 import { PRICING_PLANS } from '../data/mockData';
 import { PricingPlan } from '../types';
-import {
-  ADIL_WHATSAPP_NUMBER,
-  ADIL_WHATSAPP_DISPLAY_NUMBER,
-  HUZAIFA_WHATSAPP_NUMBER,
-  HUZAIFA_WHATSAPP_DISPLAY_NUMBER,
-  getActiveWhatsAppNumber
-} from '../config';
 
 interface PricingSectionProps {
   onSelectPlan?: (plan: PricingPlan) => void;
@@ -22,41 +15,27 @@ interface PricingSectionProps {
 }
 
 export const PricingSection: React.FC<PricingSectionProps> = ({ onSelectPlan, onCustomQuote }) => {
-  const [activeModalPlan, setActiveModalPlan] = useState<PricingPlan | null>(null);
-
-  const openWhatsApp = (recipient: 'adil' | 'huzaifa', plan: PricingPlan) => {
-    let number = ADIL_WHATSAPP_NUMBER;
-    let name = 'Adil';
-
-    if (recipient === 'huzaifa') {
-      number = HUZAIFA_WHATSAPP_NUMBER;
-      name = 'Huzaifa';
-    }
-
-    const msg = `Hello ${name}, I’m interested in ${plan.title} from META RESOLVE. I’d like to discuss my case and pricing.`;
-    const waUrl = `https://wa.me/${number}?text=${encodeURIComponent(msg)}`;
-
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
-    setActiveModalPlan(null);
-
+  const handlePlanClick = (plan: PricingPlan) => {
     if (onSelectPlan) {
       onSelectPlan(plan);
     }
+    window.dispatchEvent(
+      new CustomEvent('metaresolve_open_chat', {
+        detail: {
+          platform: plan.platform,
+        },
+      })
+    );
   };
 
-  const handlePlanClick = (plan: PricingPlan) => {
-    // Show specialist choice modal for clear contact option to Adil or Huzaifa
-    setActiveModalPlan(plan);
-  };
-
-  const handleQuickAdilContact = (plan: PricingPlan, e: React.MouseEvent) => {
-    e.stopPropagation();
-    openWhatsApp('adil', plan);
-  };
-
-  const handleQuickHuzaifaContact = (plan: PricingPlan, e: React.MouseEvent) => {
-    e.stopPropagation();
-    openWhatsApp('huzaifa', plan);
+  const handleCaseTicketClick = (plan: PricingPlan) => {
+    if (onSelectPlan) {
+      onSelectPlan(plan);
+    }
+    const contactEl = document.getElementById('contact');
+    if (contactEl) {
+      contactEl.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -155,38 +134,47 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSelectPlan, on
                   )}
                 </div>
 
-                {/* 7. Action Area: Primary CTA with Quick Specialist Split Options */}
+                {/* 7. Action Area: Primary CTA & Intake Options */}
                 <div className="space-y-2 pt-2 border-t border-white/[0.05]">
-                  <button
+                  <motion.button
+                    type="button"
+                    whileHover={{ y: -2, scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => handlePlanClick(plan)}
-                    className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${
+                    className={`w-full py-3.5 px-4 rounded-xl text-sm font-bold tracking-wide transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md ${
                       isPopular
-                        ? 'bg-gradient-to-r from-[#A3F226] via-[#B7FF35] to-[#C8FF52] hover:from-[#B7FF35] hover:to-[#D5FF6E] text-[#090D0D] shadow-[0_0_20px_rgba(183,255,53,0.3)] hover:shadow-[0_0_30px_rgba(183,255,53,0.45)]'
-                        : 'bg-[#14201C] hover:bg-[#1A2A25] text-white hover:text-[#B7FF35] border border-white/10 hover:border-[#B7FF35]/40 hover:shadow-[0_0_15px_rgba(183,255,53,0.12)]'
+                        ? 'bg-gradient-to-r from-[#A3F226] via-[#B7FF35] to-[#C8FF52] hover:from-[#B7FF35] hover:to-[#D5FF6E] text-[#090D0D] shadow-[0_0_20px_rgba(183,255,53,0.3)] hover:shadow-[0_0_30px_rgba(183,255,53,0.5)]'
+                        : 'bg-[#14201C] hover:bg-[#1A2A25] text-white hover:text-[#B7FF35] border border-white/10 hover:border-[#B7FF35]/40 hover:shadow-[0_0_15px_rgba(183,255,53,0.15)]'
                     }`}
                   >
                     <span>{plan.ctaText || 'Get Started →'}</span>
-                  </button>
+                  </motion.button>
 
-                  {/* Specialist direct options */}
+                  {/* Quick Support & Intake Options */}
                   <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      onClick={(e) => handleQuickAdilContact(plan, e)}
-                      className="py-1.5 px-2 rounded-lg bg-black/40 hover:bg-[#B7FF35]/15 border border-white/[0.06] hover:border-[#B7FF35]/30 text-[11px] font-mono text-[#A0AAA3] hover:text-[#B7FF35] flex items-center justify-center gap-1 transition-all cursor-pointer"
-                      title="Direct message Founder Adil"
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handlePlanClick(plan)}
+                      className="py-1.5 px-2 rounded-lg bg-black/40 hover:bg-[#B7FF35]/15 border border-white/[0.06] hover:border-[#B7FF35]/30 text-[11px] font-mono text-[#A0AAA3] hover:text-[#B7FF35] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      title="Open Support Chat"
                     >
-                      <MessageCircle className="w-3 h-3 text-[#B7FF35]" />
-                      <span>Message Adil</span>
-                    </button>
+                      <MessageSquare className="w-3 h-3 text-[#B7FF35]" />
+                      <span>Live Chat</span>
+                    </motion.button>
 
-                    <button
-                      onClick={(e) => handleQuickHuzaifaContact(plan, e)}
-                      className="py-1.5 px-2 rounded-lg bg-black/40 hover:bg-[#B7FF35]/15 border border-white/[0.06] hover:border-[#B7FF35]/30 text-[11px] font-mono text-[#A0AAA3] hover:text-[#B7FF35] flex items-center justify-center gap-1 transition-all cursor-pointer"
-                      title="Direct message Co-Founder Huzaifa"
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => handleCaseTicketClick(plan)}
+                      className="py-1.5 px-2 rounded-lg bg-black/40 hover:bg-[#B7FF35]/15 border border-white/[0.06] hover:border-[#B7FF35]/30 text-[11px] font-mono text-[#A0AAA3] hover:text-[#B7FF35] flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      title="Submit Ticket Form"
                     >
-                      <MessageCircle className="w-3 h-3 text-[#B7FF35]" />
-                      <span>Message Huzaifa</span>
-                    </button>
+                      <ArrowRight className="w-3 h-3 text-[#B7FF35]" />
+                      <span>Intake Ticket</span>
+                    </motion.button>
                   </div>
                 </div>
               </motion.div>
@@ -205,87 +193,6 @@ export const PricingSection: React.FC<PricingSectionProps> = ({ onSelectPlan, on
         </div>
 
       </div>
-
-      {/* Specialist Selection Modal when clicking main 'Get Started' button */}
-      <AnimatePresence>
-        {activeModalPlan && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-[#0E1514] border border-[#B7FF35]/40 rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative"
-            >
-              <button
-                onClick={() => setActiveModalPlan(null)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg text-[#8C9891] hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="text-xs font-mono text-[#B7FF35] uppercase font-bold tracking-wider mb-1">
-                {activeModalPlan.categoryLabel || activeModalPlan.platform}
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">
-                {activeModalPlan.title} ({activeModalPlan.price})
-              </h3>
-              <p className="text-xs text-[#8C9891] leading-relaxed mb-6">
-                Choose a META RESOLVE recovery specialist to initiate your case review directly on WhatsApp:
-              </p>
-
-              <div className="space-y-3">
-                {/* Option 1: Adil Afridi */}
-                <button
-                  onClick={() => openWhatsApp('adil', activeModalPlan)}
-                  className="w-full p-3.5 rounded-xl bg-[#14201C] hover:bg-[#1A2A25] border border-[#B7FF35]/30 hover:border-[#B7FF35] transition-all flex items-center justify-between text-left group cursor-pointer shadow-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#090D0D] border border-[#B7FF35]/40 flex items-center justify-center text-[#B7FF35]">
-                      <MessageCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-white group-hover:text-[#B7FF35] transition-colors flex items-center gap-2">
-                        <span>Adil Afridi</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#B7FF35]/15 text-[#B7FF35] font-mono">Founder</span>
-                      </div>
-                      <div className="text-[11px] font-mono text-[#8C9891]">
-                        {ADIL_WHATSAPP_DISPLAY_NUMBER}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-[#B7FF35] font-mono group-hover:translate-x-1 transition-transform">
-                    Chat →
-                  </span>
-                </button>
-
-                {/* Option 2: Huzaifa */}
-                <button
-                  onClick={() => openWhatsApp('huzaifa', activeModalPlan)}
-                  className="w-full p-3.5 rounded-xl bg-[#14201C] hover:bg-[#1A2A25] border border-[#B7FF35]/30 hover:border-[#B7FF35] transition-all flex items-center justify-between text-left group cursor-pointer shadow-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#090D0D] border border-[#B7FF35]/40 flex items-center justify-center text-[#B7FF35]">
-                      <MessageCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-white group-hover:text-[#B7FF35] transition-colors flex items-center gap-2">
-                        <span>Huzaifa</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#B7FF35]/15 text-[#B7FF35] font-mono">Co-Founder</span>
-                      </div>
-                      <div className="text-[11px] font-mono text-[#8C9891]">
-                        {HUZAIFA_WHATSAPP_DISPLAY_NUMBER}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-[#B7FF35] font-mono group-hover:translate-x-1 transition-transform">
-                    Chat →
-                  </span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </section>
   );
 };

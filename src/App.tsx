@@ -9,7 +9,6 @@ import { Hero } from './components/Hero';
 import { StatsBar } from './components/StatsBar';
 import { AboutSection } from './components/AboutSection';
 import { ServicesGrid } from './components/ServicesGrid';
-import { TeamSection } from './components/TeamSection';
 import { PricingSection } from './components/PricingSection';
 import { TrustSection } from './components/TrustSection';
 import { SocialProof } from './components/SocialProof';
@@ -19,6 +18,7 @@ import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
 import { BanAssessmentModal } from './components/BanAssessmentModal';
 import { FloatingEmergencyBar } from './components/FloatingEmergencyBar';
+import { SupportChatWidget } from './components/SupportChatWidget';
 import { AdminDashboard } from './components/Admin/AdminDashboard';
 import { IntroSplash } from './components/IntroSplash';
 import { PlatformType, PricingPlan, SiteConfig } from './types';
@@ -178,9 +178,6 @@ export default function App() {
         {/* Section 2: Services Grid (Every platform. Every ban type. Handled.) */}
         <ServicesGrid onSelectPlatformForQuote={handleSelectPlatformForQuote} />
 
-        {/* Section 3: The Team */}
-        <TeamSection onContactSpecialist={() => scrollToSection('contact')} />
-
         {/* Section 4: Transparent Pricing */}
         <PricingSection
           onSelectPlan={handleSelectPlan}
@@ -221,6 +218,9 @@ export default function App() {
         onClose={() => setIsAssessmentOpen(false)}
         onProceedToForm={handleProceedFromAssessment}
       />
+
+      {/* Public Customer Support Chat Widget */}
+      <SupportChatWidget />
 
     </div>
   );
